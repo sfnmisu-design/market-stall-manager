@@ -1,0 +1,37 @@
+name: Supabase Keep-Alive
+
+# Runs every 3 days at 9am UTC automatically
+# Also runnable manually from GitHub Actions tab
+on:
+  schedule:
+    - cron: '0 9 */3 * *'
+  workflow_dispatch:
+
+jobs:
+  keep-alive:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase Database
+        run: |
+          echo "🏓 Pinging Supabase at $(date)..."
+
+          STATUS=$(curl -s -o /tmp/response.txt -w "%{http_code}" \
+            -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
+            "${{ secrets.SUPABASE_URL }}/rest/v1/counters?select=key&limit=1")
+
+          echo "Response status: $STATUS"
+          echo "Response body: $(cat /tmp/response.txt)"
+
+          if [ "$STATUS" = "200" ]; then
+            echo "✅ Supabase is active and responding"
+          else
+            echo "❌ Unexpected response: $STATUS"
+            exit 1
+          fi
+
+      - name: Log Result
+        if: always()
+        run: |
+          echo "Keep-alive ping completed at $(date)"
+          echo "Next run in ~3 days"

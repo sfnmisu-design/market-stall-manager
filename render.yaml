@@ -1,0 +1,33 @@
+# render.yaml — Render deployment configuration
+# This file tells Render exactly how to build and serve your app.
+# Commit this file to your GitHub repo root.
+
+services:
+  - type: web
+    name: market-stall-manager
+    runtime: static
+    buildCommand: npm install && npm run build
+    staticPublishPath: ./build
+    pullRequestPreviewsEnabled: false
+    headers:
+      - path: /*
+        name: X-Frame-Options
+        value: DENY
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+      - path: /*
+        name: Cache-Control
+        value: public, max-age=0, must-revalidate
+      - path: /static/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: REACT_APP_SUPABASE_URL
+        sync: false          # set manually in Render dashboard
+      - key: REACT_APP_SUPABASE_ANON_KEY
+        sync: false          # set manually in Render dashboard

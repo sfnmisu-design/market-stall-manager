@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Market Stall Manager — Setup Guide</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=DM+Mono:wght@500&display=swap');
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Inter',sans-serif;background:#f1f5f9;color:#0f172a;padding:20px}
+  .wrap{max-width:720px;margin:0 auto}
+  .hero{background:linear-gradient(135deg,#0f172a,#312e81);color:#fff;border-radius:16px;padding:28px 28px 24px;margin-bottom:20px}
+  .hero-icon{width:52px;height:52px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border-radius:13px;display:flex;align-items:center;justify-content:center;font-size:26px;margin-bottom:14px;box-shadow:0 4px 20px rgba(99,102,241,.5)}
+  .hero h1{font-size:22px;font-weight:800;margin-bottom:4px}
+  .hero p{font-size:13px;color:rgba(255,255,255,.5);line-height:1.6}
+  .done-row{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap}
+  .done-chip{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:20px;padding:5px 12px;font-size:11px;color:rgba(255,255,255,.7);display:flex;align-items:center;gap:5px}
+  .done-chip .dot{width:7px;height:7px;border-radius:50%;background:#22c55e}
+
+  h2{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#64748b;margin-bottom:12px}
+  .steps{display:flex;flex-direction:column;gap:10px;margin-bottom:20px}
+  .step{background:#fff;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden}
+  .step-head{display:flex;align-items:center;gap:13px;padding:16px 18px;cursor:pointer}
+  .sn{width:30px;height:30px;border-radius:50%;background:#eef2ff;color:#6366f1;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;border:1px solid #c7d2fe}
+  .sn.done{background:#f0fdf4;color:#16a34a;border-color:#86efac}
+  .step-title{font-size:14px;font-weight:600;color:#0f172a}
+  .step-sub{font-size:11px;color:#94a3b8;margin-top:1px}
+  .chev{margin-left:auto;font-size:12px;color:#94a3b8;transition:transform .2s}
+  .chev.open{transform:rotate(180deg)}
+  .step-body{padding:0 18px 16px 61px;display:none;border-top:1px solid #f1f5f9}
+  .step-body.open{display:block;padding-top:14px}
+
+  .ab{background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:11px 13px;margin:8px 0}
+  .al{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:#94a3b8;margin-bottom:4px}
+  .at{font-size:13px;font-weight:600;color:#0f172a;margin-bottom:3px}
+  .ad{font-size:12px;color:#64748b;line-height:1.65}
+  .code{background:#1e293b;color:#e2e8f0;border-radius:8px;padding:11px 13px;font-family:'DM Mono',monospace;font-size:11px;line-height:1.8;margin:8px 0;position:relative}
+  .copy-btn{position:absolute;top:8px;right:8px;background:rgba(255,255,255,.1);border:none;color:#94a3b8;border-radius:4px;padding:3px 8px;font-size:10px;cursor:pointer;font-family:'Inter',sans-serif}
+  .copy-btn:hover{background:rgba(255,255,255,.2);color:#fff}
+  .cg{color:#86efac}.cy{color:#fbbf24}
+  .tip{background:#fef3c7;border:1px solid #fbbf24;border-radius:7px;padding:9px 12px;margin:8px 0;font-size:12px;color:#92400e;line-height:1.6}
+  .ok{background:#f0fdf4;border:1px solid #86efac;border-radius:7px;padding:9px 12px;margin:8px 0;font-size:12px;color:#166534;line-height:1.6}
+  .img-mock{border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;margin:10px 0;font-size:12px}
+  .im-bar{background:#1e293b;padding:7px 11px;display:flex;align-items:center;gap:7px}
+  .d{width:9px;height:9px;border-radius:50%}
+  .im-url{background:rgba(255,255,255,.08);border-radius:4px;padding:3px 9px;font-family:'DM Mono',monospace;font-size:10px;color:#94a3b8;flex:1}
+  .im-body{background:#f8fafc;padding:12px 14px}
+  .im-row{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid #e2e8f0;font-size:12px}
+  .im-row:last-child{border-bottom:none}
+  .im-label{color:#64748b}
+  .im-val{background:#fff;border:1px solid #e2e8f0;border-radius:4px;padding:2px 8px;font-family:'DM Mono',monospace;font-size:10px;color:#0f172a;font-weight:600}
+  .im-btn{background:#6366f1;color:#fff;border:none;border-radius:6px;padding:5px 12px;font-size:11px;font-weight:600;font-family:'Inter',sans-serif}
+
+  .done-screen{background:#fff;border:2px solid #86efac;border-radius:14px;padding:28px;text-align:center;margin-bottom:20px;display:none}
+  .done-screen.show{display:block}
+  .big-check{font-size:48px;margin-bottom:12px}
+  .done-screen h2{font-size:20px;font-weight:800;color:#0f172a;margin-bottom:6px;text-transform:none;letter-spacing:0}
+  .done-screen p{font-size:13px;color:#64748b;line-height:1.7;margin-bottom:16px}
+  .live-url{display:inline-flex;align-items:center;gap:8px;background:#eef2ff;border:1px solid #c7d2fe;border-radius:8px;padding:8px 16px;font-family:'DM Mono',monospace;font-size:13px;color:#6366f1;font-weight:600;margin-bottom:16px}
+  .dot-live{width:8px;height:8px;border-radius:50%;background:#16a34a;animation:pulse 2s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+  .mark-btn{padding:9px 20px;border-radius:8px;border:none;background:#6366f1;color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;margin-top:10px}
+  .mark-btn.done{background:#f0fdf4;color:#16a34a;border:1px solid #86efac}
+  .open-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:8px;border:1px solid #e2e8f0;background:#fff;color:#6366f1;font-size:12px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;text-decoration:none;margin:4px 4px 4px 0}
+  .open-btn:hover{border-color:#6366f1;background:#eef2ff}
+  footer{text-align:center;font-size:11px;color:#94a3b8;margin-top:20px;padding-bottom:20px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="hero">
+    <div class="hero-icon">🏪</div>
+    <h1>Market Stall Manager — Next Steps</h1>
+    <p>Your computer is set up. Complete these 2 steps in your browser to go live.</p>
+    <div class="done-row">
+      <div class="done-chip"><div class="dot"></div> Node.js installed</div>
+      <div class="done-chip"><div class="dot"></div> Git installed</div>
+      <div class="done-chip"><div class="dot"></div> .env file created</div>
+      <div class="done-chip"><div class="dot"></div> Code pushed to GitHub</div>
+    </div>
+  </div>
+
+  <div id="doneScreen" class="done-screen">
+    <div class="big-check">🎉</div>
+    <h2>You're live!</h2>
+    <p>Market Stall Manager is now accessible from any phone, PC, or tablet anywhere in the world.</p>
+    <div class="live-url"><div class="dot-live"></div> https://market-stall-manager.onrender.com</div>
+    <p>Share that URL with your team. They log in from anywhere with their credentials.</p>
+  </div>
+
+  <h2>2 steps remaining</h2>
+  <div class="steps" id="steps">
+
+    <!-- STEP A -->
+    <div class="step" id="stepA">
+      <div class="step-head" onclick="tog('A')">
+        <div class="sn" id="snA">A</div>
+        <div>
+          <div class="step-title">Set up your Supabase database</div>
+          <div class="step-sub">Run a SQL file — takes about 5 minutes</div>
+        </div>
+        <div class="chev" id="chevA">▼</div>
+      </div>
+      <div class="step-body" id="bodyA">
+        <div class="ab"><div class="al">Step 1</div><div class="at">Open Supabase</div><div class="ad">Click the button below to open Supabase. Sign in with GitHub or email (free).</div></div>
+        <a class="open-btn" href="https://supabase.com" target="_blank">🌐 Open supabase.com ↗</a>
+
+        <div class="ab" style="margin-top:10px"><div class="al">Step 2</div><div class="at">Create a new project</div><div class="ad">
+          Click <strong>New Project</strong> and fill in:<br><br>
+          Name: <strong>market-stall-manager</strong><br>
+          Region: <strong>US East (N. Virginia)</strong><br>
+          Password: pick anything strong<br><br>
+          Wait ~2 minutes for it to set up.
+        </div></div>
+
+        <div class="ab"><div class="al">Step 3</div><div class="at">Open the SQL Editor</div><div class="ad">Left sidebar → look for the <strong>&lt;/&gt;</strong> icon → SQL Editor → New query.</div></div>
+
+        <div class="ab"><div class="al">Step 4</div><div class="at">Open supabase-schema.sql from your project folder</div><div class="ad">Right-click it → Open with → Notepad. Press <strong>Ctrl+A</strong> to select all, then <strong>Ctrl+C</strong> to copy.</div></div>
+
+        <div class="ab"><div class="al">Step 5</div><div class="at">Paste and run</div><div class="ad">Click inside the SQL editor in Supabase → <strong>Ctrl+V</strong> to paste → click the green <strong>RUN</strong> button.</div></div>
+        <div class="ok"><strong>Done when:</strong> You see "Success. No rows returned" at the bottom.</div>
+
+        <div class="ab"><div class="al">Step 6 — Copy your API keys</div><div class="at">Left sidebar → Settings → API</div><div class="ad">Copy and save these two values into Notepad — you need them in Step B:</div></div>
+        <div class="img-mock">
+          <div class="im-bar"><div class="d" style="background:#ef4444"></div><div class="d" style="background:#f59e0b"></div><div class="d" style="background:#22c55e"></div><div class="im-url">supabase.com → Settings → API</div></div>
+          <div class="im-body">
+            <div class="im-row"><span class="im-label">Project URL</span><span class="im-val">https://abcdefgh.supabase.co</span></div>
+            <div class="im-row"><span class="im-label">anon / public key</span><span class="im-val">eyJhbGci… (long string)</span></div>
+          </div>
+        </div>
+        <button class="mark-btn" onclick="markDone('A')">✓ Mark Step A as done</button>
+      </div>
+    </div>
+
+    <!-- STEP B -->
+    <div class="step" id="stepB">
+      <div class="step-head" onclick="tog('B')">
+        <div class="sn" id="snB">B</div>
+        <div>
+          <div class="step-title">Deploy on Render</div>
+          <div class="step-sub">Puts your app on the internet — takes about 5 minutes</div>
+        </div>
+        <div class="chev" id="chevB">▼</div>
+      </div>
+      <div class="step-body" id="bodyB">
+        <div class="ab"><div class="al">Step 1</div><div class="at">Open Render</div><div class="ad">Click the button below. Sign in with GitHub — it connects automatically.</div></div>
+        <a class="open-btn" href="https://render.com" target="_blank">🌐 Open render.com ↗</a>
+
+        <div class="ab" style="margin-top:10px"><div class="al">Step 2</div><div class="at">Create a Static Site</div><div class="ad">Click <strong>New +</strong> → <strong>Static Site</strong> → Connect your GitHub account → find and select <strong>market-stall-manager</strong>.</div></div>
+
+        <div class="ab"><div class="al">Step 3 — Enter these exact settings</div></div>
+        <div class="img-mock">
+          <div class="im-bar"><div class="d" style="background:#ef4444"></div><div class="d" style="background:#f59e0b"></div><div class="d" style="background:#22c55e"></div><div class="im-url">dashboard.render.com / new / static</div></div>
+          <div class="im-body">
+            <div class="im-row"><span class="im-label">Name</span><span class="im-val">market-stall-manager</span></div>
+            <div class="im-row"><span class="im-label">Branch</span><span class="im-val">main</span></div>
+            <div class="im-row"><span class="im-label">Build Command</span><span class="im-val">npm install && npm run build</span></div>
+            <div class="im-row"><span class="im-label">Publish Directory</span><span class="im-val">build</span></div>
+          </div>
+        </div>
+        <div class="tip"><strong>Publish Directory must be exactly:</strong> <code>build</code> — nothing else.</div>
+
+        <div class="ab"><div class="al">Step 4</div><div class="at">Add Environment Variables</div><div class="ad">Scroll down → click <strong>Advanced</strong> → click <strong>Add Environment Variable</strong> twice:</div></div>
+        <div class="img-mock">
+          <div class="im-bar"><div class="d" style="background:#ef4444"></div><div class="d" style="background:#f59e0b"></div><div class="d" style="background:#22c55e"></div><div class="im-url">Environment Variables</div></div>
+          <div class="im-body">
+            <div class="im-row"><span class="im-label">REACT_APP_SUPABASE_URL</span><span class="im-val">https://your-project.supabase.co</span></div>
+            <div class="im-row"><span class="im-label">REACT_APP_SUPABASE_ANON_KEY</span><span class="im-val">eyJhbGci… (your key)</span></div>
+          </div>
+        </div>
+        <div class="tip"><strong>Paste your real values</strong> from Supabase — the ones you saved in Step A.</div>
+
+        <div class="ab"><div class="al">Step 5</div><div class="at">Click "Create Static Site"</div><div class="ad">Watch the build log. After 2–3 minutes you'll see "Build successful" and a live URL appears at the top of the page.</div></div>
+
+        <div class="ok"><strong>Done when:</strong> You see a green <strong>Live</strong> badge and a URL like <strong>https://market-stall-manager.onrender.com</strong> — click it to open your app!</div>
+        <button class="mark-btn" onclick="markDone('B')">✓ Mark Step B as done</button>
+      </div>
+    </div>
+
+  </div>
+
+  <h2>Demo login credentials</h2>
+  <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px 18px;margin-bottom:20px">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px">
+      <div style="background:#f5f3ff;border:1px solid #c4b5fd;border-radius:8px;padding:11px 13px">
+        <div style="font-size:10px;font-weight:700;color:#7c3aed;text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px">Administrator</div>
+        <div style="font-family:'DM Mono',monospace;font-size:12px;color:#0f172a">admin@market.com</div>
+        <div style="font-family:'DM Mono',monospace;font-size:12px;color:#64748b">admin123</div>
+      </div>
+      <div style="background:#dbeafe;border:1px solid #93c5fd;border-radius:8px;padding:11px 13px">
+        <div style="font-size:10px;font-weight:700;color:#1d4ed8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px">Manager</div>
+        <div style="font-family:'DM Mono',monospace;font-size:12px;color:#0f172a">manager@market.com</div>
+        <div style="font-family:'DM Mono',monospace;font-size:12px;color:#64748b">manager123</div>
+      </div>
+      <div style="background:#d1fae5;border:1px solid #6ee7b7;border-radius:8px;padding:11px 13px">
+        <div style="font-size:10px;font-weight:700;color:#047857;text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px">Cashier</div>
+        <div style="font-family:'DM Mono',monospace;font-size:12px;color:#0f172a">cashier@market.com</div>
+        <div style="font-family:'DM Mono',monospace;font-size:12px;color:#64748b">cashier123</div>
+      </div>
+    </div>
+    <div style="margin-top:10px;font-size:11px;color:#94a3b8">Change these from the Users tab after your first login.</div>
+  </div>
+
+  <footer>Market Stall Manager v3.0.0 · SFN TechGeek · Built with React + Supabase + Render</footer>
+</div>
+
+<script>
+const open={A:true,B:false};
+function tog(id){
+  open[id]=!open[id];
+  document.getElementById('body'+id).classList.toggle('open',open[id]);
+  document.getElementById('chev'+id).classList.toggle('open',open[id]);
+}
+tog('A'); // open A by default
+
+function markDone(id){
+  const sn=document.getElementById('sn'+id);
+  sn.textContent='✓'; sn.classList.add('done');
+  const btn=document.querySelector('#step'+id+' .mark-btn');
+  btn.textContent='✓ Completed'; btn.classList.add('done');
+  document.getElementById('body'+id).classList.remove('open');
+  document.getElementById('chev'+id).classList.remove('open');
+  open[id]=false;
+  if(id==='A'){tog('B');}
+  checkAllDone();
+}
+function checkAllDone(){
+  const a=document.getElementById('snA').classList.contains('done');
+  const b=document.getElementById('snB').classList.contains('done');
+  if(a&&b) document.getElementById('doneScreen').classList.add('show');
+}
+</script>
+</body>
+</html>
