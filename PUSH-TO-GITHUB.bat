@@ -1,128 +1,108 @@
 @echo off
 title Push to GitHub
 color 0A
+cd /d "%~dp0"
 cls
 
-:: Force the working directory to be the same folder as this bat file
-cd /d "%~dp0"
+echo.
+echo  ============================================================
+echo   PUSH TO GITHUB - Using GitHub CLI (easiest method)
+echo  ============================================================
+echo.
+echo  This uses GitHub's official tool - no tokens or passwords.
+echo  It opens a browser where you just click to approve.
+echo.
+pause
 
+:: ── INSTALL GITHUB CLI ───────────────────────────────────────────────────────
 echo.
-echo  Working folder: %~dp0
-echo.
-echo  Looking for TOKEN.txt in this folder...
-echo.
-
-:: List files so user can see what's there
-dir /b "*.txt" 2>nul
-echo.
-
-:: Check TOKEN.txt exists
-:checkfile
-if not exist "TOKEN.txt" (
-    echo  [!] TOKEN.txt not found in: %~dp0
+echo  [*] Installing GitHub CLI (official GitHub tool)...
+winget install --id GitHub.cli --silent --accept-package-agreements --accept-source-agreements
+if %errorLevel% neq 0 (
+    echo  [!] Auto-install failed. Downloading manually...
+    start "" "https://cli.github.com/"
     echo.
-    echo  Please save TOKEN.txt in the SAME folder as this bat file.
-    echo  The folder is shown above - copy that path.
-    echo.
-    echo  Steps:
-    echo   1. Open Notepad
-    echo   2. Paste your GitHub token
-    echo   3. File ^> Save As
-    echo   4. Paste this path in the address bar: %~dp0
-    echo   5. Filename: TOKEN.txt
-    echo   6. Save
-    echo   7. Press any key here
-    echo.
+    echo  Download and install GitHub CLI from that page.
+    echo  Then press any key to continue.
     pause >nul
-    goto checkfile
 )
 
-echo  [+] Found TOKEN.txt!
-echo.
+:: Refresh PATH
+set "PATH=%PATH%;%LOCALAPPDATA%\Programs\GitHub CLI;%ProgramFiles%\GitHub CLI"
 
-:: Read token - strip spaces and newlines
-set "GH_TOKEN="
-for /f "usebackq delims=" %%A in ("TOKEN.txt") do (
-    if "!GH_TOKEN!"=="" set "GH_TOKEN=%%A"
+echo.
+echo  [+] GitHub CLI ready.
+
+:: ── LOGIN ────────────────────────────────────────────────────────────────────
+echo.
+echo  ============================================================
+echo  [*] Logging in to GitHub...
+echo.
+echo  A browser window will open.
+echo  Just click "Authorize GitHub CLI" and you are done.
+echo  ============================================================
+echo.
+pause
+
+gh auth login --hostname github.com --git-protocol https --web
+
+if %errorLevel% neq 0 (
+    echo  [!] Login failed. Please try again.
+    pause & exit /b 1
 )
 
-:: If delayed expansion not available, use simpler method
-if "%GH_TOKEN%"=="" (
-    set /p GH_TOKEN=<TOKEN.txt
+echo.
+echo  [+] Logged in to GitHub successfully!
+
+:: ── GET USERNAME ─────────────────────────────────────────────────────────────
+for /f "tokens=*" %%i in ('gh api user --jq .login') do set GH_USER=%%i
+echo  [+] GitHub username: %GH_USER%
+
+:: ── CREATE REPO ──────────────────────────────────────────────────────────────
+echo.
+echo  [*] Creating GitHub repository...
+gh repo create market-stall-manager --public --source=. --remote=origin --push
+
+if %errorLevel% equ 0 (
+    echo.
+    echo  ============================================================
+    echo   SUCCESS! Code is on GitHub!
+    echo  ============================================================
+    echo.
+    echo  Your repo: https://github.com/%GH_USER%/market-stall-manager
+    echo.
+    echo  Opening your next steps guide...
+    start "" "https://github.com/%GH_USER%/market-stall-manager"
+    start "" "%~dp0NEXT-STEPS.html"
+    pause
+    exit /b 0
 )
 
-:: Strip any trailing spaces or carriage returns
-for /f "tokens=* delims= " %%A in ("%GH_TOKEN%") do set GH_TOKEN=%%A
-
-echo  [+] Token loaded successfully.
+:: ── IF REPO ALREADY EXISTS, JUST PUSH ────────────────────────────────────────
 echo.
+echo  [*] Repo may already exist. Trying to push directly...
 
-:: Delete immediately for security
-del "TOKEN.txt" >nul 2>&1
-echo  [+] TOKEN.txt deleted.
-echo.
-
-:: Get username
-:getuser
-set /p GH_USER="  Your GitHub username: "
-if "%GH_USER%"=="" goto getuser
-echo.
-
-:: Repo check
-echo  Make sure you have created a repo called market-stall-manager
-echo  on GitHub. Press any key to open github.com/new if needed.
-echo  Otherwise just press any key to continue.
-pause >nul
-start "" "https://github.com/new"
-echo.
-echo  Come back here once the repo exists and press any key...
-pause >nul
-
-:: Git config
-echo  [*] Configuring Git...
-git config --global user.name "%GH_USER%"
-git config --global user.email "%GH_USER%@users.noreply.github.com"
-git config --global init.defaultBranch main
-git config --global credential.helper store
-
-:: Write credentials
-(echo https://%GH_USER%:%GH_TOKEN%@github.com)>"%USERPROFILE%\.git-credentials"
-
-:: Clean old git
-if exist ".git" (
-    echo  [*] Removing old git folder...
-    rd /s /q ".git"
-)
-
-:: Push
-echo  [*] Initialising repository...
+if exist ".git" rd /s /q ".git"
 git init
 git add .
 git commit -m "Initial commit - Market Stall Manager"
 git branch -M main
-
-echo  [*] Connecting to GitHub...
-git remote add origin https://%GH_USER%:%GH_TOKEN%@github.com/%GH_USER%/market-stall-manager.git
-
-echo  [*] Pushing to GitHub... (30-60 seconds)
+git remote add origin https://github.com/%GH_USER%/market-stall-manager.git
 git push -u origin main
 
 if %errorLevel% neq 0 (
     echo.
-    echo  [!] Push failed. Check:
-    echo      - GitHub username is correct
-    echo      - Repo exists at github.com/%GH_USER%/market-stall-manager
-    echo      - Token had full repo permission
-    echo.
-    pause
-    exit /b 1
+    echo  [!] Push failed.
+    echo      Go to github.com/new and create a repo called:
+    echo      market-stall-manager
+    echo      Then run this script again.
+    pause & exit /b 1
 )
 
 echo.
 echo  ============================================================
-echo   SUCCESS! Code is now on GitHub.
+echo   SUCCESS! Code is on GitHub!
 echo  ============================================================
 echo.
-echo  Opening your next steps guide...
 start "" "%~dp0NEXT-STEPS.html"
 pause

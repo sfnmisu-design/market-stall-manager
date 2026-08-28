@@ -147,9 +147,9 @@ function buildReceipt(b,no,branding,vat){
 <div style="height:3px;background:linear-gradient(90deg,#6366f1,#8b5cf6,#ec4899)"></div>
 <div style="padding:22px 26px">
 <div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#94a3b8;margin-bottom:8px">Renter</div>${row('Name',b.renter_name)}${b.email?row('Email',b.email):''}${b.phone?row('Phone',b.phone):''}${b.notes?row('Notes',b.notes):''}${row('Booked',b.booked_at_fmt||'')}${b.booked_by?row('By',b.booked_by):''}
-<div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#94a3b8;margin:16px 0 8px">Stall</div>${row('Stall',`${b.stall_name} — Zone ${b.stall_zone}`)}${row('Type',b.stall_type)}${row('Size',b.stall_size)}${row('Rate',`$${b.stall_price}/day`)}
+<div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#94a3b8;margin:16px 0 8px">Stall</div>${row('Stall',`${b.stall_name} — Zone ${b.stall_zone}`)}${row('Type',b.stall_type)}${row('Size',b.stall_size)}${row('Rate',`$${b.stall_price}/week`)}
 <div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#94a3b8;margin:16px 0 8px">Period</div>${row('Check-in',fmtDate(b.start_date))}${row('Due Date',fmtDate(b.end_date))}${row('Duration',`${b.days} day${b.days!==1?'s':''}`)}
-<div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#94a3b8;margin:16px 0 8px">Payment</div>${row(`Subtotal (${b.days}d × $${b.stall_price})`,`$${fmt2(sub)}`)}${vat.enabled?row(`${vat.label||'VAT'} (${vat.rate}%)`,`$${fmt2(vatAmt)}`):''}
+<div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#94a3b8;margin:16px 0 8px">Payment</div>${row(`Subtotal (${Math.ceil(b.days/7)||0}wk × $${b.stall_price})`,`$${fmt2(sub)}`)}${vat.enabled?row(`${vat.label||'VAT'} (${vat.rate}%)`,`$${fmt2(vatAmt)}`):''}
 </div>
 <div style="margin:0 26px 14px;background:#1e293b;border-radius:12px;padding:16px 20px;display:flex;justify-content:space-between;align-items:center;color:#fff"><div style="font-size:12px;color:rgba(255,255,255,.5)">Total Due${vat.enabled?` (incl. ${vat.label||'VAT'})`:''}  </div><div style="font-family:'DM Mono',monospace;font-size:28px;font-weight:700">$${fmt2(grand)}</div></div>
 ${paid>0?`<div style="margin:0 26px 14px;background:${chg>=0?'#f0fdf4':'#fff1f2'};border:1.5px solid ${chg>=0?'#86efac':'#fca5a5'};border-radius:12px;padding:14px 18px"><div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:10px"><span style="color:#64748b">Amount Received</span><span style="font-weight:700">$${fmt2(paid)}</span></div><div style="display:flex;justify-content:space-between;align-items:center;border-top:1px solid ${chg>=0?'#d1fae5':'#fecaca'};padding-top:10px"><span style="font-weight:700;font-size:14px">${chg>=0?'Change Due':'Balance Remaining'}</span><span style="font-family:'DM Mono',monospace;font-size:22px;font-weight:800;color:${chg>=0?'#16a34a':'#dc2626'}">${chg>=0?`$${fmt2(chg)}`:`−$${fmt2(Math.abs(chg))}`}</span></div></div>`:''}
@@ -313,7 +313,7 @@ function StallCard({stall,booking,stallTypes,vat,canEdit,canDelete,onBook,onRele
         {stall.notes&&<span style={{color:T.light,fontStyle:'italic',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:110}} title={stall.notes}>📝 {stall.notes}</span>}
       </div>
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-        <span style={{fontFamily:T.mono,fontSize:19,fontWeight:900,color:T.text}}>${stall.price}<span style={{fontSize:11,fontWeight:400,color:T.light}}>/day</span></span>
+        <span style={{fontFamily:T.mono,fontSize:19,fontWeight:900,color:T.text}}>${stall.price}<span style={{fontSize:11,fontWeight:400,color:T.light}}>/week</span></span>
         <span style={{fontSize:12,color:T.muted,display:'flex',alignItems:'center',gap:5}}>
           <span style={{width:8,height:8,borderRadius:'50%',background:{available:'#22c55e',booked:'#ef4444',pending:'#f59e0b'}[status],display:'inline-block',boxShadow:`0 0 0 3px ${{available:'#22c55e',booked:'#ef4444',pending:'#f59e0b'}[status]}28`}}/>
           {{available:'Available',booked:'Booked',pending:'Pending'}[status]}
@@ -346,18 +346,18 @@ function BookingModal({stall,vat,currentUser,receiptNo,onConfirm,onClose}){
   const[startDate,setStart]=useState('');const[endDate,setEnd]=useState('');
   const[amtPaid,setAmtPaid]=useState('');const[notes,setNotes]=useState('');
   const[errors,setErrors]=useState({});const[saving,setSaving]=useState(false);
-  const days=diffDays(startDate,endDate),sub=parseFloat(stall.price)*days;
+  const days=diffDays(startDate,endDate),weeks=Math.ceil(days/7)||0,sub=parseFloat(stall.price)*weeks;
   const{vatAmt,grand}=calcVAT(sub,vat.rate,vat.enabled);
   const paid=+amtPaid||0,chg=Math.round((paid-grand)*100)/100;
   const validate=()=>{const e={};if(!name.trim())e.name='Required';if(email&&!email.match(/^[^@]+@[^@]+\.[^@]+$/))e.email='Invalid';if(!startDate)e.startDate='Required';if(!endDate)e.endDate='Required';if(startDate&&endDate&&new Date(endDate)<new Date(startDate))e.endDate='End before start';return e;};
   const confirm=async()=>{
     const e=validate();if(Object.keys(e).length){setErrors(e);return;}
     setSaving(true);
-    await onConfirm({stall_id:stall.id,stall_name:stall.name,stall_zone:stall.zone,stall_type:stall.type,stall_size:stall.size,stall_price:stall.price,renter_name:name,email,phone,start_date:startDate,end_date:endDate,days,subtotal:sub,vat_amount:vatAmt,total:grand,amount_paid:paid,notes:notes.trim(),booked_by:currentUser.name,receipt_no:receiptNo,booked_at_fmt:new Date().toLocaleString('en-GB')});
+    await onConfirm({stall_id:stall.id,stall_name:stall.name,stall_zone:stall.zone,stall_type:stall.type,stall_size:stall.size,stall_price:stall.price,renter_name:name,email,phone,start_date:startDate,end_date:endDate,days,weeks,subtotal:sub,vat_amount:vatAmt,total:grand,amount_paid:paid,notes:notes.trim(),booked_by:currentUser.name,receipt_no:receiptNo});
     setSaving(false);
   };
   return(
-    <Modal onClose={onClose} width={460}><MHead title={`Book Stall ${stall.name}`} subtitle={`${stall.type} · Zone ${stall.zone} · ${stall.size} · $${stall.price}/day`} icon="📋" onClose={onClose}/>
+    <Modal onClose={onClose} width={460}><MHead title={`Book Stall ${stall.name}`} subtitle={`${stall.type} · Zone ${stall.zone} · ${stall.size} · $${stall.price}/week`} icon="📋" onClose={onClose}/>
     <div style={{padding:'18px 26px 24px'}}>
       {stall.notes&&<div style={{background:'#f0fdf4',border:'1px solid #86efac',borderRadius:8,padding:'9px 13px',marginBottom:14,fontSize:12,color:'#166534'}}>📝 {stall.notes}</div>}
       <div style={{marginBottom:13}}><FieldLabel>Renter Name</FieldLabel><input value={name} onChange={e=>setName(e.target.value)} placeholder="Full name" style={inp(errors.name)}/><FieldError msg={errors.name}/></div>
@@ -369,9 +369,9 @@ function BookingModal({stall,vat,currentUser,receiptNo,onConfirm,onClose}){
         <div style={{flex:1}}><FieldLabel>Start Date</FieldLabel><input type="date" value={startDate} onChange={e=>{setStart(e.target.value);if(endDate&&e.target.value>endDate)setEnd('');}} style={inp(errors.startDate)}/><FieldError msg={errors.startDate}/></div>
         <div style={{flex:1}}><FieldLabel>End / Due Date</FieldLabel><input type="date" value={endDate} min={startDate||undefined} onChange={e=>setEnd(e.target.value)} style={inp(errors.endDate)}/><FieldError msg={errors.endDate}/></div>
       </div>
-      {days>0&&<div style={{background:'#eff6ff',border:'1.5px solid #bfdbfe',borderRadius:8,padding:'9px 13px',marginBottom:13,fontSize:13,color:'#1d4ed8',fontWeight:600,display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}><span>📅 {days} day{days!==1?'s':''} · {fmtDate(startDate)} → {fmtDate(endDate)}</span><DueBadge end={endDate}/></div>}
+      {days>0&&<div style={{background:'#eff6ff',border:'1.5px solid #bfdbfe',borderRadius:8,padding:'9px 13px',marginBottom:13,fontSize:13,color:'#1d4ed8',fontWeight:600,display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}><span>📅 {days} day{days!==1?'s':''} ({weeks} week{weeks!==1?'s':''}) · {fmtDate(startDate)} → {fmtDate(endDate)}</span><DueBadge end={endDate}/></div>}
       {days>0&&<Card style={{padding:'13px 15px',marginBottom:13}}>
-        <div style={{display:'flex',justifyContent:'space-between',fontSize:13,color:T.muted,paddingBottom:6}}><span>Subtotal ({days}d × ${stall.price})</span><span style={{fontWeight:600,color:T.text}}>${fmt2(sub)}</span></div>
+        <div style={{display:'flex',justifyContent:'space-between',fontSize:13,color:T.muted,paddingBottom:6}}><span>Subtotal ({weeks}wk × ${stall.price})</span><span style={{fontWeight:600,color:T.text}}>${fmt2(sub)}</span></div>
         {vat.enabled&&<div style={{display:'flex',justifyContent:'space-between',fontSize:13,color:T.purple,paddingBottom:6}}><span>{vat.label||'VAT'} ({vat.rate}%)</span><span style={{fontWeight:600}}>${fmt2(vatAmt)}</span></div>}
         <div style={{display:'flex',justifyContent:'space-between',borderTop:`1px solid ${T.border}`,paddingTop:9,marginTop:4}}><span style={{fontWeight:700,fontSize:15,color:T.text}}>Total Due</span><span style={{fontFamily:T.mono,fontSize:20,fontWeight:900,color:T.text}}>${fmt2(grand)}</span></div>
       </Card>}
@@ -411,9 +411,9 @@ function ReceiptModal({booking,branding,vat,onClose}){
       <div style={{height:3,background:'linear-gradient(90deg,#6366f1,#8b5cf6,#ec4899)'}}/>
       <div style={{padding:'20px 24px'}}>
         <Sec title="Renter"><Row l="Name" v={booking.renter_name}/>{booking.email&&<Row l="Email" v={booking.email}/>}{booking.phone&&<Row l="Phone" v={booking.phone}/>}{booking.notes&&<Row l="Notes" v={booking.notes}/>}<Row l="Booked" v={booking.booked_at_fmt||new Date(booking.created_at).toLocaleString('en-GB')}/>{booking.booked_by&&<Row l="By" v={booking.booked_by}/>}</Sec>
-        <Sec title="Stall"><Row l="Stall" v={`${booking.stall_name} — Zone ${booking.stall_zone}`}/><Row l="Type" v={booking.stall_type}/><Row l="Size" v={booking.stall_size}/><Row l="Rate" v={`$${booking.stall_price}/day`}/></Sec>
+        <Sec title="Stall"><Row l="Stall" v={`${booking.stall_name} — Zone ${booking.stall_zone}`}/><Row l="Type" v={booking.stall_type}/><Row l="Size" v={booking.stall_size}/><Row l="Rate" v={`$${booking.stall_price}/week`}/></Sec>
         <Sec title="Period"><Row l="Check-in" v={fmtDate(booking.start_date)}/><Row l="Due Date" v={fmtDate(booking.end_date)}/><Row l="Duration" v={`${booking.days} day${booking.days!==1?'s':''}`}/></Sec>
-        <Sec title="Payment"><Row l={`Subtotal (${booking.days}d × $${booking.stall_price})`} v={`$${fmt2(sub)}`}/>{vat.enabled&&<Row l={`${vat.label||'VAT'} (${vat.rate}%)`} v={`$${fmt2(vatAmt)}`} color={T.purple}/>}</Sec>
+        <Sec title="Payment"><Row l={`Subtotal (${Math.ceil(booking.days/7)||0}wk × $${booking.stall_price})`} v={`$${fmt2(sub)}`}/>{vat.enabled&&<Row l={`${vat.label||'VAT'} (${vat.rate}%)`} v={`$${fmt2(vatAmt)}`} color={T.purple}/>}</Sec>
         <div style={{background:T.primary,color:'#fff',borderRadius:12,padding:'14px 18px',display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
           <div style={{fontSize:12,color:'rgba(255,255,255,.5)'}}>Total Due{vat.enabled?` (incl. ${vat.label||'VAT'})`:''}</div>
           <div style={{fontFamily:T.mono,fontSize:26,fontWeight:900}}>${fmt2(grand)}</div>
@@ -506,7 +506,7 @@ function StallModal({stall,stallTypes,existingNames,onSave,onClose}){
     <div style={{padding:'18px 24px 22px'}}>
       <div style={{display:'flex',gap:12,marginBottom:12}}><div style={{flex:2}}><FieldLabel>Stall Name/ID</FieldLabel><input value={name} onChange={e=>setName(e.target.value)} placeholder="e.g. D1" style={inp(errors.name)}/><FieldError msg={errors.name}/></div><div style={{flex:1}}><FieldLabel>Zone</FieldLabel><select value={zone} onChange={e=>setZone(e.target.value)} style={selStyle()}>{'ABCDEF'.split('').map(z=><option key={z}>{z}</option>)}</select></div></div>
       <div style={{marginBottom:12}}><FieldLabel>Type</FieldLabel><select value={type} onChange={e=>setType(e.target.value)} style={selStyle()}>{stallTypes.map(t=><option key={t.name} value={t.name}>{t.name}</option>)}</select></div>
-      <div style={{display:'flex',gap:12,marginBottom:12}}><div style={{flex:1}}><FieldLabel>Size</FieldLabel><input value={size} onChange={e=>setSize(e.target.value)} placeholder="3×3m" style={inp(false)}/></div><div style={{flex:1}}><FieldLabel>Price/day ($)</FieldLabel><input type="number" value={price} onChange={e=>setPrice(e.target.value)} placeholder="100" style={inp(errors.price)}/><FieldError msg={errors.price}/></div></div>
+      <div style={{display:'flex',gap:12,marginBottom:12}}><div style={{flex:1}}><FieldLabel>Size</FieldLabel><input value={size} onChange={e=>setSize(e.target.value)} placeholder="3×3m" style={inp(false)}/></div><div style={{flex:1}}><FieldLabel>Price/week ($)</FieldLabel><input type="number" value={price} onChange={e=>setPrice(e.target.value)} placeholder="100" style={inp(errors.price)}/><FieldError msg={errors.price}/></div></div>
       <div style={{marginBottom:20}}><FieldLabel optional>Notes</FieldLabel><textarea value={notes} onChange={e=>setNotes(e.target.value)} placeholder="Corner spot, near entrance…" rows={2} style={{...inp(false),resize:'vertical'}}/></div>
       <div style={{display:'flex',gap:10}}><Btn ghost onClick={onClose} style={{flex:1}}>Cancel</Btn><Btn onClick={async()=>{const e=validate();if(Object.keys(e).length){setErrors(e);return;}setSaving(true);await onSave({...(stall||{}),name:name.trim().toUpperCase(),zone,type,size:size.trim(),price:+price,notes:notes.trim()});setSaving(false);}} disabled={saving} style={{flex:2}}>{saving?'Saving…':isEdit?'💾 Save':'➕ Add Stall'}</Btn></div>
     </div></Modal>
@@ -515,7 +515,7 @@ function StallModal({stall,stallTypes,existingNames,onSave,onClose}){
 
 function EditDatesModal({booking,vat,onSave,onClose}){
   const[startDate,setStart]=useState(booking.start_date);const[endDate,setEnd]=useState(booking.end_date);const[errors,setErrors]=useState({});const[saving,setSaving]=useState(false);
-  const newDays=diffDays(startDate,endDate),newSub=parseFloat(booking.stall_price)*newDays;
+  const newDays=diffDays(startDate,endDate),newWeeks=Math.ceil(newDays/7)||0,newSub=parseFloat(booking.stall_price)*newWeeks;
   const{vatAmt:newVAT,grand:newGrand}=calcVAT(newSub,vat.rate,vat.enabled);
   const diff=Math.round((newGrand-parseFloat(booking.total))*100)/100;
   const validate=()=>{const e={};if(!startDate)e.startDate='Required';if(!endDate)e.endDate='Required';if(startDate&&endDate&&new Date(endDate)<new Date(startDate))e.endDate='End before start';return e;};
