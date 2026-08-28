@@ -353,7 +353,7 @@ function BookingModal({stall,vat,currentUser,receiptNo,onConfirm,onClose}){
   const confirm=async()=>{
     const e=validate();if(Object.keys(e).length){setErrors(e);return;}
     setSaving(true);
-    await onConfirm({stall_id:stall.id,stall_name:stall.name,stall_zone:stall.zone,stall_type:stall.type,stall_size:stall.size,stall_price:stall.price,renter_name:name,email,phone,start_date:startDate,end_date:endDate,days,weeks,subtotal:sub,vat_amount:vatAmt,total:grand,amount_paid:paid,notes:notes.trim(),booked_by:currentUser.name,receipt_no:receiptNo});
+    await onConfirm({stall_id:stall.id,stall_name:stall.name,stall_zone:stall.zone,stall_type:stall.type,stall_size:stall.size,stall_price:stall.price,renter_name:name,email,phone,start_date:startDate,end_date:endDate,days,subtotal:sub,vat_amount:vatAmt,total:grand,amount_paid:paid,notes:notes.trim(),booked_by:currentUser.name,receipt_no:receiptNo});
     setSaving(false);
   };
   return(
