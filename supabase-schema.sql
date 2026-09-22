@@ -159,3 +159,28 @@ alter publication supabase_realtime add table public.settings;
 alter publication supabase_realtime add table public.users;
 alter publication supabase_realtime add table public.stall_types;
 alter publication supabase_realtime add table public.counters;
+
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- AUDIT FIXES — Run this block if you already ran the schema above
+-- Adds missing columns and performance indexes
+-- ═══════════════════════════════════════════════════════════════════════════
+
+-- Missing columns added after initial deploy
+alter table public.bookings add column if not exists booked_at_fmt text default '';
+alter table public.bookings add column if not exists stall_name    text default '';
+alter table public.bookings add column if not exists stall_zone    text default '';
+alter table public.bookings add column if not exists stall_type    text default '';
+alter table public.bookings add column if not exists stall_size    text default '';
+alter table public.bookings add column if not exists stall_price   numeric(10,2) default 0;
+alter table public.bookings add column if not exists stall_notes   text default '';
+alter table public.bookings add column if not exists weeks         integer default 0;
+
+-- Performance indexes
+create index if not exists idx_bookings_stall_id   on public.bookings(stall_id);
+create index if not exists idx_bookings_created_at on public.bookings(created_at desc);
+create index if not exists idx_bookings_end_date   on public.bookings(end_date);
+create index if not exists idx_stalls_zone         on public.stalls(zone);
+create index if not exists idx_stalls_status       on public.stalls(status);
+create index if not exists idx_activity_log_time   on public.activity_log(created_at desc);
+create index if not exists idx_users_email         on public.users(email);

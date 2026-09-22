@@ -197,10 +197,7 @@ function LoginScreen({branding,onLogin}){
           </button>
           <Divider label="Demo Accounts"/>
           <div style={{padding:'11px 13px',background:'#f8fafc',borderRadius:8,fontSize:12,color:T.muted,lineHeight:1.8}}>
-            💡 <strong>Credentials:</strong><br/>
-            admin@market.com / admin123<br/>
-            manager@market.com / manager123<br/>
-            cashier@market.com / cashier123
+            💡 Contact your administrator for login credentials.
           </div>
         </div>
         <div style={{textAlign:'center',marginTop:18,fontSize:11,color:'rgba(255,255,255,.25)'}}>
@@ -440,7 +437,7 @@ function ReceiptModal({booking,branding,vat,onClose}){
 function SettingsModal({branding,vat,onSave,onClose}){
   const[org,setOrg]=useState(branding.orgName||'');const[app,setApp]=useState(branding.appName||'Market Stall Manager');const[tag,setTag]=useState(branding.tagline||'');const[logo,setLogo]=useState(branding.logoSrc||'');
   const[vatOn,setVatOn]=useState(vat.enabled||false);const[vatRate,setVatRate]=useState(vat.rate||0);const[vatLabel,setVatLabel]=useState(vat.label||'VAT');const[saving,setSaving]=useState(false);
-  const handleLogo=e=>{const f=e.target.files[0];if(!f)return;if(f.size>2*1024*1024){alert('Max 2MB');return;}const r=new FileReader();r.onload=ev=>setLogo(ev.target.result);r.readAsDataURL(f);};
+  const handleLogo=e=>{const f=e.target.files[0];if(!f)return;if(f.size>2*1024*1024){setErr(v=>({...v,logo:'Image too large. Max 2MB.'}));return;}const r=new FileReader();r.onload=ev=>setLogo(ev.target.result);r.readAsDataURL(f);};
   const tog={width:48,height:26,borderRadius:13,cursor:'pointer',background:vatOn?T.accent:'#cbd5e1',display:'inline-flex',alignItems:'center',padding:'3px',border:'none',transition:'background .2s'};
   const knob={width:20,height:20,borderRadius:'50%',background:'#fff',boxShadow:'0 1px 4px #0002',transition:'transform .2s',transform:vatOn?'translateX(22px)':'translateX(0)'};
   return(
@@ -574,6 +571,37 @@ function UsersView({users,currentUser,onAddUser,onEditUser,onDeleteUser,perms}){
 // ══════════════════════════════════════════════════════════════════════════════
 // MAIN APP
 // ══════════════════════════════════════════════════════════════════════════════
+
+// ── Edit Payment Modal ─────────────────────────────────────────────────────────
+function EditPaymentModal({booking,vat,onSave,onClose}){
+  const sub=parseFloat(booking.subtotal||0);
+  const{vatAmt,grand}=calcVAT(sub,vat.rate,vat.enabled);
+  const[amtPaid,setAmtPaid]=useState(String(booking.amount_paid||''));
+  const[saving,setSaving]=useState(false);
+  const paid=+amtPaid||0,chg=Math.round((paid-grand)*100)/100;
+  const ps=payStatus(paid,grand);
+  return(
+    <Modal onClose={onClose} width={420}><MHead title="Update Payment" subtitle={`${booking.renter_name} · Stall ${booking.stall_name}`} icon="💳" onClose={onClose}/>
+    <div style={{padding:'18px 24px 22px'}}>
+      <Card style={{padding:'13px 15px',marginBottom:14}}>
+        <div style={{display:'flex',justifyContent:'space-between',fontSize:13,color:T.muted,paddingBottom:7}}><span>Subtotal</span><span>${fmt2(sub)}</span></div>
+        {vat.enabled&&<div style={{display:'flex',justifyContent:'space-between',fontSize:13,color:T.purple,paddingBottom:7}}><span>{vat.label||'VAT'} ({vat.rate}%)</span><span>${fmt2(vatAmt)}</span></div>}
+        <div style={{display:'flex',justifyContent:'space-between',borderTop:`1px solid ${T.border}`,paddingTop:9,fontWeight:800,fontSize:15}}><span>Total Due</span><span>${fmt2(grand)}</span></div>
+      </Card>
+      <div style={{marginBottom:14}}><FieldLabel>Amount Paid ($)</FieldLabel>
+        <input type="number" min={0} step={0.01} value={amtPaid} onChange={e=>setAmtPaid(e.target.value)} placeholder={fmt2(grand)} style={inp(false)}/>
+      </div>
+      {paid>0&&<div style={{background:chg>=0?'#f0fdf4':'#fff1f2',border:`1.5px solid ${chg>=0?'#86efac':'#fca5a5'}`,borderRadius:10,padding:'13px 16px',marginBottom:14}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+          <div><div style={{fontWeight:700,fontSize:14,color:T.text}}>{chg>=0?'💚 Change Due':'🔴 Balance Remaining'}</div><div style={{marginTop:4}}><PayBadge status={ps}/></div></div>
+          <span style={{fontFamily:T.mono,fontSize:24,fontWeight:900,color:chg>=0?T.success:T.danger}}>{chg>=0?`$${fmt2(chg)}`:`−$${fmt2(Math.abs(chg))}`}</span>
+        </div>
+      </div>}
+      <div style={{display:'flex',gap:10}}><Btn ghost onClick={onClose} style={{flex:1}}>Cancel</Btn><Btn onClick={async()=>{setSaving(true);await onSave(booking.id,paid);setSaving(false);}} disabled={saving} style={{flex:2}}>{saving?'Saving…':'💾 Update Payment'}</Btn></div>
+    </div></Modal>
+  );
+}
+
 export default function App(){
   // ── Data state ──
   const[stalls,      setStalls]      = useState([]);
@@ -650,7 +678,7 @@ export default function App(){
     const ping = async () => {
       try {
         await supabase.from('counters').select('key', { count: 'exact', head: true });
-        console.log('[keep-alive] DB ping OK', new Date().toLocaleTimeString());
+        // ping ok
       } catch(e) {
         console.warn('[keep-alive] ping failed', e?.message);
       }
@@ -713,24 +741,38 @@ export default function App(){
 
   const handleConfirmBooking = async data => {
     setSyncing(true);
-    // Increment receipt counter
-    const newNo = receiptNo + 1;
-    await supabase.from('counters').update({value:newNo}).eq('key','receipts');
-    setReceiptNo(newNo);
-    // Create booking
-    const{data:bk,error}=await supabase.from('bookings').insert({...data,receipt_no:newNo}).select().single();
-    if(!error){
-      await supabase.from('stalls').update({status:'booked'}).eq('id',data.stall_id);
-      logAction('booked',`Stall ${data.stall_name} booked for ${data.renter_name} ($${fmt2(data.total)}).`);
-      addToast('success','Booking confirmed',`Stall ${data.stall_name} · $${fmt2(data.total)}`);
-      setModal(null); setSelected(bk); setTimeout(()=>setModal('receipt'),80);
-    }else{ addToast('error','Booking failed',error.message); }
+    try {
+      const newNo = receiptNo + 1;
+      await supabase.from('counters').update({value:newNo}).eq('key','receipts');
+      setReceiptNo(newNo);
+      const{data:bk,error}=await supabase.from('bookings').insert({...data,receipt_no:newNo}).select().single();
+      if(!error){
+        await supabase.from('stalls').update({status:'booked'}).eq('id',data.stall_id);
+        logAction('booked',`Stall ${data.stall_name} booked for ${data.renter_name} ($${fmt2(data.total)}).`);
+        addToast('success','Booking confirmed',`Stall ${data.stall_name} · $${fmt2(data.total)}`);
+        setModal(null); setSelected(bk); setTimeout(()=>setModal('receipt'),80);
+      }else{
+        // Show the specific Supabase column error clearly
+        const msg = error.message||'Unknown error';
+        addToast('error','Booking failed', msg);
+        console.error('Booking error:', error);
+      }
+    } catch(err) {
+      addToast('error','Booking failed', err.message||'Connection error');
+      console.error('Booking exception:', err);
+    }
     setSyncing(false);
   };
 
   const handleSaveDates = async (id,startDate,endDate,newDays,newSub,newGrand) => {
     const{error}=await supabase.from('bookings').update({start_date:startDate,end_date:endDate,days:newDays,subtotal:newSub,total:newGrand}).eq('id',id);
     if(!error){ setModal(null); addToast('success','Dates updated',''); logAction('dates',`Booking dates updated → $${fmt2(newGrand)}.`); }
+    else addToast('error','Update failed',error.message);
+  };
+
+  const handleSavePayment = async (id, amountPaid) => {
+    const{error}=await supabase.from('bookings').update({amount_paid:amountPaid}).eq('id',id);
+    if(!error){ setModal(null); setSelected(null); addToast('success','Payment updated',''); logAction('payment',`Payment updated to $${fmt2(amountPaid)}.`); }
     else addToast('error','Update failed',error.message);
   };
 
@@ -937,7 +979,7 @@ export default function App(){
                     <div style={{display:'flex',alignItems:'center',gap:7,flexWrap:'wrap'}}>
                       <span style={{fontFamily:T.mono,fontWeight:900,fontSize:17,color:T.text}}>${fmt2(grand)}</span>
                       <Btn ghost small onClick={()=>{setSelected(b);setModal('receipt');}} style={{color:T.success,borderColor:T.success+'66'}}>🖨 Receipt</Btn>
-                      {perms.canBook&&<Btn ghost small onClick={()=>{setSelected(b);setModal('editDates');}}>✎ Edit</Btn>}
+                      {perms.canBook&&<Btn ghost small onClick={()=>{setSelected(b);setModal('editDates');}}>✎ Dates</Btn>}{perms.canBook&&<Btn ghost small onClick={()=>{setSelected(b);setModal('editPayment');}}>💳 Payment</Btn>}
                       {perms.canBook&&<Btn ghost small danger onClick={()=>handleRelease(b.stall_id)}>Release</Btn>}
                     </div>
                   </Card>
@@ -976,7 +1018,8 @@ export default function App(){
       {modal==='addStall'    &&<StallModal stallTypes={stallTypes} existingNames={existingNames} onSave={handleSaveStall} onClose={()=>setModal(null)}/>}
       {modal==='editStall'   &&selected&&<StallModal stall={selected} stallTypes={stallTypes} existingNames={existingNames.filter(n=>n!==selected.name.toUpperCase())} onSave={handleSaveStall} onClose={()=>{setModal(null);setSelected(null);}}/>}
       {modal==='settings'    &&<SettingsModal branding={branding} vat={vat} onSave={handleSaveSettings} onClose={()=>setModal(null)}/>}
-      {modal==='report'      &&<Modal onClose={()=>setModal(null)} width={720}><MHead title="Report" subtitle="Occupancy & revenue summary" icon="📊" onClose={()=>setModal(null)}/><div style={{padding:'18px 22px'}}><AnalyticsView stalls={stalls} bookings={bookings} stallTypes={stallTypes} statuses={statuses} vat={vat}/></div><div style={{padding:'0 22px 22px',display:'flex',gap:10}}><Btn ghost onClick={()=>setModal(null)} style={{flex:1}}>Close</Btn><Btn onClick={()=>alert('Download the codebase and use the full printable report from there.')} style={{flex:2}}>🖨 Print Report</Btn></div></Modal>}
+      {modal==='editPayment'   &&selected&&<EditPaymentModal booking={selected} vat={vat} onSave={handleSavePayment} onClose={()=>{setModal(null);setSelected(null);}}/> }
+      {modal==='report'      &&<Modal onClose={()=>setModal(null)} width={720}><MHead title="Report" subtitle="Occupancy & revenue summary" icon="📊" onClose={()=>setModal(null)}/><div style={{padding:'18px 22px'}}><AnalyticsView stalls={stalls} bookings={bookings} stallTypes={stallTypes} statuses={statuses} vat={vat}/></div><div style={{padding:'0 22px 22px',display:'flex',gap:10}}><Btn ghost onClick={()=>setModal(null)} style={{flex:1}}>Close</Btn><Btn onClick={()=>{ const win=window.open('','_blank'); if(win){ win.document.write('<html><head><title>Report</title><style>body{font-family:sans-serif;padding:2rem}@media print{button{display:none}}</style></head><body>'); win.document.write('<h2 style="margin-bottom:1rem">Market Report — '+new Date().toLocaleDateString('en-GB',{day:'2-digit',month:'long',year:'numeric'})+'</h2>'); win.document.write('<p>Total Stalls: '+stalls.length+' | Booked: '+stalls.filter(s=>s.status==="booked").length+' | Available: '+stalls.filter(s=>s.status==="available").length+'</p>'); win.document.write('<p style="margin-top:.5rem">Total Revenue: $'+fmt2(totalRev)+'</p>'); win.document.write('<br><table border="1" cellpadding="8" style="border-collapse:collapse;width:100%;font-size:13px"><tr style="background:#f1f5f9"><th>Stall</th><th>Renter</th><th>Start</th><th>End</th><th>Weeks</th><th>Total</th><th>Paid</th><th>Balance</th></tr>'); bookings.forEach(b=>{ const sub=parseFloat(b.subtotal||0); const{grand}=calcVAT(sub,vat.rate,vat.enabled); const paid=parseFloat(b.amount_paid||0); const bal=Math.round((grand-paid)*100)/100; win.document.write('<tr><td>'+b.stall_name+'</td><td>'+b.renter_name+'</td><td>'+b.start_date+'</td><td>'+b.end_date+'</td><td>'+Math.ceil(b.days/7)+'</td><td>$'+fmt2(grand)+'</td><td>$'+fmt2(paid)+'</td><td style="color:'+(bal>0?'#dc2626':'#16a34a')+'">$'+fmt2(bal)+'</td></tr>'); }); win.document.write('</table>'); win.document.write('<br><button onclick="window.print()">🖨 Print</button></body></html>'); win.document.close(); }}} style={{flex:2}}>🖨 Print Report</Btn></div></Modal>}
       {modal==='manageTypes' &&<Modal onClose={()=>setModal(null)} width={400}><MHead title="Stall Types" icon="🏷" onClose={()=>setModal(null)}/><div style={{padding:'18px 24px 22px'}}>
         <div style={{display:'flex',flexDirection:'column',gap:7,marginBottom:16,maxHeight:230,overflowY:'auto'}}>
           {stallTypes.map(t=>(<div key={t.id||t.name} style={{display:'flex',alignItems:'center',justifyContent:'space-between',background:'#f8fafc',border:`1px solid ${T.border}`,borderRadius:9,padding:'9px 13px'}}>
