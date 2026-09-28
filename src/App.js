@@ -951,6 +951,50 @@ function MapView({stalls, bookings, vat, onBook, onRelease, onPending, onAddStal
   );
 }
 
+
+// ── Floor Plan Modal ───────────────────────────────────────────────────────────
+const FLOORPLAN_URL = 'https://claude.ai/artifact/SrK37s1mUhH62FW1g669ah';
+
+function FloorPlanModal({stallName, onClose}){
+  const iframeRef = useRef(null);
+
+  useEffect(()=>{
+    if(!stallName) return;
+    const timer = setTimeout(()=>{
+      if(iframeRef.current){
+        iframeRef.current.contentWindow?.postMessage(
+          {type:'HIGHLIGHT_STALL', stallName},
+          '*'
+        );
+      }
+    }, 1500); // wait for iframe to load
+    return ()=>clearTimeout(timer);
+  },[stallName]);
+
+  return(
+    <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.85)',zIndex:9500,display:'flex',flexDirection:'column',animation:'mIn .2s ease'}}>
+      <div style={{background:T.primary,padding:'11px 18px',display:'flex',alignItems:'center',justifyContent:'space-between',borderBottom:'1px solid rgba(255,255,255,.1)'}}>
+        <div style={{display:'flex',alignItems:'center',gap:10}}>
+          <div style={{width:30,height:30,background:'linear-gradient(135deg,#6366f1,#8b5cf6)',borderRadius:7,display:'flex',alignItems:'center',justifyContent:'center',fontSize:16}}>🗺</div>
+          <div>
+            <div style={{fontSize:14,fontWeight:800,color:'#fff'}}>Hydronie Market — Live Floor Plan</div>
+            <div style={{fontSize:11,color:'rgba(255,255,255,.4)'}}>
+              {stallName?`Highlighting Stall #${stallName}`:'Click any dot · Scroll to zoom · Drag to pan'}
+            </div>
+          </div>
+        </div>
+        <button onClick={onClose} style={{background:'rgba(255,255,255,.08)',border:'1px solid rgba(255,255,255,.15)',color:'rgba(255,255,255,.7)',borderRadius:8,padding:'6px 14px',cursor:'pointer',fontFamily:T.sans,fontSize:13,fontWeight:600}}>✕ Close</button>
+      </div>
+      <iframe
+        ref={iframeRef}
+        src={FLOORPLAN_URL}
+        style={{flex:1,border:'none',width:'100%'}}
+        title="Hydronie Market Floor Plan"
+      />
+    </div>
+  );
+}
+
 export default function App(){
   // ── Data state ──
   const[stalls,      setStalls]      = useState([]);
@@ -975,6 +1019,7 @@ export default function App(){
   const[searchQ,     setSearchQ]     = useState('');
   const[view,        setView]        = useState('grid');
   const[highlightStall,setHighlightStall] = useState(null); // stall name to highlight on map
+  const[floorPlanStall,setFloorPlanStall] = useState(null); // opens full floor plan modal
   const realtimeRef = useRef(null);
 
   // ── Toast helpers ──
@@ -1188,6 +1233,7 @@ export default function App(){
     <>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=DM+Mono:wght@400;500;700&display=swap');*{box-sizing:border-box;margin:0;padding:0}@keyframes mIn{from{opacity:0;transform:scale(.96) translateY(8px)}to{opacity:1;transform:none}}@keyframes tIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}@keyframes fUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:none}}input:focus,select:focus,textarea:focus{border-color:#6366f1!important;box-shadow:0 0 0 3px rgba(99,102,241,.12)!important;outline:none!important;}`}</style>
       <LoginScreen branding={branding} onLogin={handleLogin}/>
+      {floorPlanStall!==null&&<FloorPlanModal stallName={floorPlanStall} onClose={()=>setFloorPlanStall(null)}/>}
       <Toast toasts={toasts} remove={removeToast}/>
     </>
   );
@@ -1287,7 +1333,7 @@ export default function App(){
             return(<div key={zone} style={{marginBottom:26}}>
               <div style={{display:'flex',alignItems:'center',gap:9,marginBottom:11}}><span style={{background:T.primary,color:'#fff',borderRadius:6,padding:'2px 10px',fontSize:10,fontWeight:700,letterSpacing:'0.07em'}}>ZONE {zone}</span><span style={{fontSize:12,color:T.muted}}>{zs.length} stall{zs.length!==1?'s':''} · {zs.filter(s=>s.status==='booked').length} booked</span></div>
               <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))',gap:11}}>
-                {zs.map(stall=><StallCard key={stall.id} stall={stall} booking={bookingByStall[stall.id]} stallTypes={stallTypes} vat={vat} canEdit={perms.canBook} canDelete={perms.canDeleteStalls} onBook={s=>{setSelected(s);setModal('book');}} onRelease={handleRelease} onEdit={s=>{if(s._delete){handleSaveStall(s);}else{setSelected(s);setModal('editStall');}}} onPending={handlePending} onViewOnMap={name=>{setHighlightStall(name);setView('map');}}/>)}
+                {zs.map(stall=><StallCard key={stall.id} stall={stall} booking={bookingByStall[stall.id]} stallTypes={stallTypes} vat={vat} canEdit={perms.canBook} canDelete={perms.canDeleteStalls} onBook={s=>{setSelected(s);setModal('book');}} onRelease={handleRelease} onEdit={s=>{if(s._delete){handleSaveStall(s);}else{setSelected(s);setModal('editStall');}}} onPending={handlePending} onViewOnMap={name=>{setFloorPlanStall(name);}}/>)}
               </div>
             </div>);
           })}
@@ -1399,6 +1445,7 @@ export default function App(){
         <Btn ghost onClick={()=>setModal(null)} style={{width:'100%',marginTop:16}}>Done</Btn>
       </div></Modal>}
 
+      {floorPlanStall!==null&&<FloorPlanModal stallName={floorPlanStall} onClose={()=>setFloorPlanStall(null)}/>}
       <Toast toasts={toasts} remove={removeToast}/>
     </div>
   );
