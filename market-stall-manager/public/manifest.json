@@ -1,0 +1,11 @@
+{
+  "short_name": "Stall Manager",
+  "name": "Market Stall Manager",
+  "icons": [
+    { "src": "favicon.ico", "sizes": "64x64", "type": "image/x-icon" }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#0f172a",
+  "background_color": "#f1f5f9"
+}
