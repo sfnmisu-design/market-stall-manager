@@ -286,7 +286,7 @@ function AnalyticsView({stalls,bookings,stallTypes,statuses,vat}){
 }
 
 // ── Stall Card ─────────────────────────────────────────────────────────────────
-function StallCard({stall,booking,stallTypes,vat,canEdit,canDelete,onBook,onRelease,onEdit,onPending}){
+function StallCard({stall,booking,stallTypes,vat,canEdit,canDelete,onBook,onRelease,onEdit,onPending,onViewOnMap}){
   const status=stall.status||'available';
   const tc=stallTypes.find(t=>t.name===stall.type)||{bg_color:'#f3f4f6',border_color:'#6b7280',text_color:'#374151'};
   const sub=parseFloat(booking?.subtotal||0);const{grand}=calcVAT(sub,vat.rate,vat.enabled);
@@ -330,9 +330,13 @@ function StallCard({stall,booking,stallTypes,vat,canEdit,canDelete,onBook,onRele
         <div style={{display:'flex',flexDirection:'column',gap:5,marginTop:2}}>
           <button onClick={()=>onBook(stall)} style={{padding:'9px',borderRadius:9,border:'none',background:`linear-gradient(135deg,${T.accent},${T.accentD})`,color:'#fff',fontWeight:700,fontSize:13,cursor:'pointer',boxShadow:'0 2px 8px rgba(99,102,241,.3)'}} onMouseEnter={e=>e.currentTarget.style.opacity='.9'} onMouseLeave={e=>e.currentTarget.style.opacity='1'}>Book Stall</button>
           <button onClick={()=>onPending(stall.id)} style={{padding:'6px',borderRadius:8,border:`1.5px solid ${T.warning}`,background:'transparent',color:T.warning,fontWeight:600,fontSize:12,cursor:'pointer'}}>Mark Pending</button>
+          {onViewOnMap&&<button onClick={()=>onViewOnMap(stall.name)} style={{padding:'6px',borderRadius:8,border:`1.5px solid #6366f1`,background:'transparent',color:'#6366f1',fontWeight:600,fontSize:12,cursor:'pointer'}}>🗺 View on Map</button>}
         </div>
       )}
-      {(status==='pending'||status==='booked')&&<button onClick={()=>{if(window.confirm('Release this stall?'))onRelease(stall.id);}} style={{padding:'8px',borderRadius:9,border:`1.5px solid ${T.danger}`,background:'transparent',color:T.danger,fontWeight:700,fontSize:13,cursor:'pointer',marginTop:2}}>Release Stall</button>}
+      {(status==='pending'||status==='booked')&&<div style={{display:'flex',flexDirection:'column',gap:5,marginTop:2}}>
+        {onViewOnMap&&<button onClick={()=>onViewOnMap(stall.name)} style={{padding:'7px',borderRadius:8,border:'1.5px solid #6366f1',background:'transparent',color:'#6366f1',fontWeight:600,fontSize:12,cursor:'pointer'}}>🗺 View on Map</button>}
+        <button onClick={()=>{if(window.confirm('Release this stall?'))onRelease(stall.id);}} style={{padding:'8px',borderRadius:9,border:`1.5px solid ${T.danger}`,background:'transparent',color:T.danger,fontWeight:700,fontSize:13,cursor:'pointer'}}>Release Stall</button>
+      </div>}
     </div>
   );
 }
@@ -735,12 +739,31 @@ const MAP_CAT_COLORS = {
 
 const CAT_EMOJI_MAP = {Food:'🍱',Grocery:'🛒',Clothing:'👗',Fruits:'🥦',Fish:'🐟',Electronics:'📱',Jewelry:'💍'};
 
-function MapView({stalls, bookings, vat, onBook, onRelease, onPending, onAddStall, perms}){
+function MapView({stalls, bookings, vat, onBook, onRelease, onPending, onAddStall, highlightStall, onClearHighlight, perms}){
   const[mapFilter,setMapFilter]=useState('all');
   const[mapCat,setMapCat]=useState(null);
   const[mapSearch,setMapSearch]=useState('');
   const[tooltip,setTooltip]=useState(null); // {stall, booking, x, y, pinned}
   const[adding,setAdding]=useState(null); // stall being added
+  const highlightRef = React.useRef(null);
+
+  // When a stall is highlighted from the Stalls tab, scroll to it and open its tooltip
+  React.useEffect(()=>{
+    if(!highlightStall) return;
+    const el = document.getElementById('map-stall-'+highlightStall);
+    if(el){
+      el.scrollIntoView({behavior:'smooth',block:'center'});
+      el.style.boxShadow='0 0 0 4px #6366f1, 0 0 20px rgba(99,102,241,.5)';
+      el.style.transform='scale(1.2)';
+      el.style.zIndex='20';
+      setTimeout(()=>{
+        el.style.boxShadow='';
+        el.style.transform='';
+        el.style.zIndex='';
+        onClearHighlight&&onClearHighlight();
+      },3000);
+    }
+  },[highlightStall]);
 
   // Build lookup maps from DB
   const stallByName = useMemo(()=>Object.fromEntries(stalls.map(s=>[s.name,s])),[stalls]);
@@ -849,7 +872,7 @@ function MapView({stalls, bookings, vat, onBook, onRelease, onPending, onAddStal
                   const sty=getStallStyle(s);
                   const bk=bookingByStall[s.num];
                   return(
-                    <div key={s.num+'|'+s.cat}
+                    <div key={s.num+'|'+s.cat} id={`map-stall-${s.num}`}
                       onMouseEnter={e=>{e.currentTarget.style.transform='scale(1.1)';e.currentTarget.style.zIndex=10;showTip(e,s);}}
                       onMouseLeave={()=>{if(!tooltip?.pinned)setTooltip(null);}}
                       onClick={e=>{e.stopPropagation();showTip(e,s,true);}}
@@ -951,6 +974,7 @@ export default function App(){
   const[filterStat,  setFS]          = useState('All');
   const[searchQ,     setSearchQ]     = useState('');
   const[view,        setView]        = useState('grid');
+  const[highlightStall,setHighlightStall] = useState(null); // stall name to highlight on map
   const realtimeRef = useRef(null);
 
   // ── Toast helpers ──
@@ -1263,7 +1287,7 @@ export default function App(){
             return(<div key={zone} style={{marginBottom:26}}>
               <div style={{display:'flex',alignItems:'center',gap:9,marginBottom:11}}><span style={{background:T.primary,color:'#fff',borderRadius:6,padding:'2px 10px',fontSize:10,fontWeight:700,letterSpacing:'0.07em'}}>ZONE {zone}</span><span style={{fontSize:12,color:T.muted}}>{zs.length} stall{zs.length!==1?'s':''} · {zs.filter(s=>s.status==='booked').length} booked</span></div>
               <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))',gap:11}}>
-                {zs.map(stall=><StallCard key={stall.id} stall={stall} booking={bookingByStall[stall.id]} stallTypes={stallTypes} vat={vat} canEdit={perms.canBook} canDelete={perms.canDeleteStalls} onBook={s=>{setSelected(s);setModal('book');}} onRelease={handleRelease} onEdit={s=>{if(s._delete){handleSaveStall(s);}else{setSelected(s);setModal('editStall');}}} onPending={handlePending}/>)}
+                {zs.map(stall=><StallCard key={stall.id} stall={stall} booking={bookingByStall[stall.id]} stallTypes={stallTypes} vat={vat} canEdit={perms.canBook} canDelete={perms.canDeleteStalls} onBook={s=>{setSelected(s);setModal('book');}} onRelease={handleRelease} onEdit={s=>{if(s._delete){handleSaveStall(s);}else{setSelected(s);setModal('editStall');}}} onPending={handlePending} onViewOnMap={name=>{setHighlightStall(name);setView('map');}}/>)}
               </div>
             </div>);
           })}
@@ -1349,6 +1373,8 @@ export default function App(){
           onRelease={handleRelease}
           onPending={handlePending}
           onAddStall={handleSaveStall}
+          highlightStall={highlightStall}
+          onClearHighlight={()=>setHighlightStall(null)}
           perms={perms}
         />
       </div>}
