@@ -849,12 +849,11 @@ function MapView({stalls, bookings, vat, onBook, onRelease, onPending, perms}){
                   const bk=bookingByStall[s.num];
                   return(
                     <div key={s.num+'|'+s.cat}
-                      onMouseEnter={e=>showTip(e,s)}
+                      onMouseEnter={e=>{e.currentTarget.style.transform='scale(1.1)';e.currentTarget.style.zIndex=10;showTip(e,s);}}
                       onMouseLeave={()=>{if(!tooltip?.pinned)setTooltip(null);}}
                       onClick={e=>{e.stopPropagation();showTip(e,s,true);}}
                       style={{...sty,width:52,height:52,borderRadius:7,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',cursor:'pointer',transition:'all .15s',position:'relative',flexShrink:0}}
-                      onMouseEnterCapture={e=>{e.currentTarget.style.transform='scale(1.1)';e.currentTarget.style.zIndex=10;}}
-                      onMouseLeaveCapture={e=>{e.currentTarget.style.transform='';e.currentTarget.style.zIndex=1;}}>
+>
                       <div style={{position:'absolute',top:3,right:3,width:7,height:7,borderRadius:'50%',background:{available:'#22c55e',booked:'#ef4444',pending:'#f59e0b',unregistered:'#cbd5e1'}[status]}}/>
                       <div style={{fontFamily:T.mono,fontSize:10,fontWeight:800,lineHeight:1}}>{s.num}</div>
                       <div style={{fontSize:8,fontWeight:500,marginTop:2,maxWidth:48,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',textAlign:'center'}}>{bk?bk.renter_name.split(' ')[0]:s.renter?(s.renter.split(' ')[0]):'—'}</div>
@@ -1316,6 +1315,19 @@ export default function App(){
             </div>}
         </div>}
       </div>
+
+      {/* ── Map View ── */}
+      {view==='map'&&<div style={{padding:'0'}}>
+        <MapView
+          stalls={stalls}
+          bookings={bookings}
+          vat={vat}
+          onBook={s=>{setSelected(s);setModal('book');}}
+          onRelease={handleRelease}
+          onPending={handlePending}
+          perms={perms}
+        />
+      </div>}
 
       {/* ── Modals ── */}
       {modal==='book'        &&selected&&<BookingModal stall={selected} vat={vat} currentUser={currentUser} receiptNo={receiptNo+1} onConfirm={handleConfirmBooking} onClose={()=>{setModal(null);setSelected(null);}}/>}
