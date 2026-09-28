@@ -184,3 +184,14 @@ create index if not exists idx_stalls_zone         on public.stalls(zone);
 create index if not exists idx_stalls_status       on public.stalls(status);
 create index if not exists idx_activity_log_time   on public.activity_log(created_at desc);
 create index if not exists idx_users_email         on public.users(email);
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- MAP STALL TYPES — Add these so map categories work when adding stalls
+-- ═══════════════════════════════════════════════════════════════════════════
+insert into public.stall_types (name, bg_color, border_color, text_color) values
+  ('Fruit & Veg',   '#e8f5e9', '#43a047', '#1b5e20'),
+  ('Fish & Meat',   '#e3f2fd', '#1e88e5', '#0d47a1'),
+  ('Clothing',      '#f3e5f5', '#8e24aa', '#4a148c'),
+  ('Electronics',   '#fff8e1', '#ffb300', '#e65100'),
+  ('Jewelry',       '#fce4ec', '#e91e63', '#880e4f')
+on conflict (name) do nothing;

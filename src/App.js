@@ -735,11 +735,12 @@ const MAP_CAT_COLORS = {
 
 const CAT_EMOJI_MAP = {Food:'🍱',Grocery:'🛒',Clothing:'👗',Fruits:'🥦',Fish:'🐟',Electronics:'📱',Jewelry:'💍'};
 
-function MapView({stalls, bookings, vat, onBook, onRelease, onPending, perms}){
+function MapView({stalls, bookings, vat, onBook, onRelease, onPending, onAddStall, perms}){
   const[mapFilter,setMapFilter]=useState('all');
   const[mapCat,setMapCat]=useState(null);
   const[mapSearch,setMapSearch]=useState('');
   const[tooltip,setTooltip]=useState(null); // {stall, booking, x, y, pinned}
+  const[adding,setAdding]=useState(null); // stall being added
 
   // Build lookup maps from DB
   const stallByName = useMemo(()=>Object.fromEntries(stalls.map(s=>[s.name,s])),[stalls]);
@@ -896,7 +897,29 @@ function MapView({stalls, bookings, vat, onBook, onRelease, onPending, perms}){
               {(status==='booked'||status==='pending')&&dbS&&perms.canBook&&(
                 <button onClick={()=>{if(window.confirm('Release this stall?'))onRelease(dbS.id);setTooltip(null);}} style={{width:'100%',marginTop:10,padding:'8px',borderRadius:8,border:`1.5px solid ${T.danger}`,background:'transparent',color:T.danger,fontWeight:700,fontSize:12,cursor:'pointer',fontFamily:T.sans}}>Release Stall</button>
               )}
-              {status==='unregistered'&&<div style={{marginTop:8,fontSize:11,color:T.light}}>Add stall #{s.num} in the Stalls tab to manage it.</div>}
+              {status==='unregistered'&&perms.canBook&&(
+                <div>
+                  <div style={{fontSize:11,color:T.light,marginBottom:8}}>This stall is not in your system yet.</div>
+                  <button disabled={adding===s.num} onClick={async()=>{
+                    setAdding(s.num);
+                    // Map PDF category to stall type
+                    const typeMap={Food:'Food',Grocery:'Retail',Fruits:'Fruit & Veg',Fish:'Fish & Meat',Clothing:'Clothing',Electronics:'Electronics',Jewelry:'Jewelry'};
+                    const t=typeMap[s.cat]||s.cat;
+                    await onAddStall({
+                      name:s.num,
+                      zone:'A',
+                      type:t,
+                      size:'10×5ft',
+                      price:0,
+                      notes:s.renter?`PDF renter: ${s.renter}`:'',
+                    });
+                    setAdding(null);
+                    setTooltip(null);
+                  }} style={{width:'100%',padding:'8px',borderRadius:8,border:'none',background:`linear-gradient(135deg,${T.accent},${T.accentD})`,color:'#fff',fontWeight:700,fontSize:12,cursor:adding===s.num?'wait':'pointer',fontFamily:T.sans,opacity:adding===s.num?0.7:1}}>
+                    {adding===s.num?'Adding…':'➕ Add to Stalls'}
+                  </button>
+                </div>
+              )}
             </div>
           );
         })()}
@@ -1325,6 +1348,7 @@ export default function App(){
           onBook={s=>{setSelected(s);setModal('book');}}
           onRelease={handleRelease}
           onPending={handlePending}
+          onAddStall={handleSaveStall}
           perms={perms}
         />
       </div>}
