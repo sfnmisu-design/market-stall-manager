@@ -745,10 +745,10 @@ function MapView({stalls, bookings, vat, onBook, onRelease, onPending, onAddStal
   const[mapSearch,setMapSearch]=useState('');
   const[tooltip,setTooltip]=useState(null); // {stall, booking, x, y, pinned}
   const[adding,setAdding]=useState(null); // stall being added
-  const highlightRef = React.useRef(null);
+  const highlightRef = useRef(null);
 
   // When a stall is highlighted from the Stalls tab, scroll to it and open its tooltip
-  React.useEffect(()=>{
+  useEffect(()=>{
     if(!highlightStall) return;
     const el = document.getElementById('map-stall-'+highlightStall);
     if(el){
