@@ -195,3 +195,6 @@ insert into public.stall_types (name, bg_color, border_color, text_color) values
   ('Electronics',   '#fff8e1', '#ffb300', '#e65100'),
   ('Jewelry',       '#fce4ec', '#e91e63', '#880e4f')
 on conflict (name) do nothing;
+
+-- ── Payment method column ────────────────────────────────────────────────────
+alter table public.bookings add column if not exists payment_method text default 'Cash — Hand to Cashier';

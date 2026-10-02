@@ -146,7 +146,7 @@ function buildReceipt(b,no,branding,vat){
 <body><div class="w"><div class="hdr"><div style="display:flex;justify-content:space-between;align-items:center"><div style="display:flex;align-items:center">${logo}<div>${branding.orgName?`<div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.4);margin-bottom:3px">${branding.orgName}</div>`:''}<div style="font-size:19px;font-weight:800">${branding.appName}</div><div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:2px">RENTAL RECEIPT</div></div></div><div style="text-align:right"><div style="font-family:'DM Mono',monospace;font-size:19px;font-weight:700">#${no}</div><div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:4px">${new Date().toLocaleDateString('en-GB',{day:'2-digit',month:'long',year:'numeric'})}</div></div></div></div>
 <div style="height:3px;background:linear-gradient(90deg,#6366f1,#8b5cf6,#ec4899)"></div>
 <div style="padding:22px 26px">
-<div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#94a3b8;margin-bottom:8px">Renter</div>${row('Name',b.renter_name)}${b.email?row('Email',b.email):''}${b.phone?row('Phone',b.phone):''}${b.notes?row('Notes',b.notes):''}${row('Booked',b.booked_at_fmt||'')}${b.booked_by?row('By',b.booked_by):''}
+<div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#94a3b8;margin-bottom:8px">Renter</div>${row('Name',b.renter_name)}${b.email?row('Email',b.email):''}${b.phone?row('Phone',b.phone):''}${b.notes?row('Notes',b.notes):''}${row('Booked',b.booked_at_fmt||'')}${b.booked_by?row('By',b.booked_by):''}${b.payment_method?row('💵 Payment Method',b.payment_method):''}
 <div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#94a3b8;margin:16px 0 8px">Stall</div>${row('Stall',`${b.stall_name} — Zone ${b.stall_zone}`)}${row('Type',b.stall_type)}${row('Size',b.stall_size)}${row('Rate',`$${b.stall_price}/week`)}
 <div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#94a3b8;margin:16px 0 8px">Period</div>${row('Check-in',fmtDate(b.start_date))}${row('Due Date',fmtDate(b.end_date))}${row('Duration',`${b.days} day${b.days!==1?'s':''}`)}
 <div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#94a3b8;margin:16px 0 8px">Payment</div>${row(`Subtotal (${Math.ceil(b.days/7)||0}wk × $${b.stall_price})`,`$${fmt2(sub)}`)}${vat.enabled?row(`${vat.label||'VAT'} (${vat.rate}%)`,`$${fmt2(vatAmt)}`):''}
@@ -286,7 +286,7 @@ function AnalyticsView({stalls,bookings,stallTypes,statuses,vat}){
 }
 
 // ── Stall Card ─────────────────────────────────────────────────────────────────
-function StallCard({stall,booking,stallTypes,vat,canEdit,canDelete,onBook,onRelease,onEdit,onPending,onViewOnMap}){
+function StallCard({stall,booking,stallTypes,vat,canEdit,canDelete,onBook,onRelease,onRepossess,onEdit,onPending,onViewOnMap}){
   const status=stall.status||'available';
   const tc=stallTypes.find(t=>t.name===stall.type)||{bg_color:'#f3f4f6',border_color:'#6b7280',text_color:'#374151'};
   const sub=parseFloat(booking?.subtotal||0);const{grand}=calcVAT(sub,vat.rate,vat.enabled);
@@ -335,7 +335,8 @@ function StallCard({stall,booking,stallTypes,vat,canEdit,canDelete,onBook,onRele
       )}
       {(status==='pending'||status==='booked')&&<div style={{display:'flex',flexDirection:'column',gap:5,marginTop:2}}>
         {onViewOnMap&&<button onClick={()=>onViewOnMap(stall.name)} style={{padding:'7px',borderRadius:8,border:'1.5px solid #6366f1',background:'transparent',color:'#6366f1',fontWeight:600,fontSize:12,cursor:'pointer'}}>🗺 View on Map</button>}
-        <button onClick={()=>{if(window.confirm('Release this stall?'))onRelease(stall.id);}} style={{padding:'8px',borderRadius:9,border:`1.5px solid ${T.danger}`,background:'transparent',color:T.danger,fontWeight:700,fontSize:13,cursor:'pointer'}}>Release Stall</button>
+        <button onClick={()=>{if(window.confirm('Release this stall? (Voluntary — no record)'))onRelease(stall.id);}} style={{padding:'7px',borderRadius:8,border:`1px solid ${T.border}`,background:'transparent',color:T.muted,fontWeight:600,fontSize:12,cursor:'pointer'}}>↩ Release</button>
+        {onRepossess&&<button onClick={()=>onRepossess(stall,booking)} style={{padding:'8px',borderRadius:9,border:`2px solid ${T.danger}`,background:'#fff1f2',color:T.danger,fontWeight:700,fontSize:12,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:6}}>⚠️ Repossess Stall</button>}
       </div>}
     </div>
   );
@@ -345,7 +346,7 @@ function StallCard({stall,booking,stallTypes,vat,canEdit,canDelete,onBook,onRele
 function BookingModal({stall,vat,currentUser,receiptNo,onConfirm,onClose}){
   const[name,setName]=useState('');const[email,setEmail]=useState('');const[phone,setPhone]=useState('');
   const[startDate,setStart]=useState('');const[endDate,setEnd]=useState('');
-  const[amtPaid,setAmtPaid]=useState('');const[notes,setNotes]=useState('');
+  const[amtPaid,setAmtPaid]=useState('');const[payMethod,setPayMethod]=useState('Cash — Hand to Cashier');const[notes,setNotes]=useState('');
   const[errors,setErrors]=useState({});const[saving,setSaving]=useState(false);
   const days=diffDays(startDate,endDate),weeks=Math.ceil(days/7)||0,sub=parseFloat(stall.price)*weeks;
   const{vatAmt,grand}=calcVAT(sub,vat.rate,vat.enabled);
@@ -354,7 +355,7 @@ function BookingModal({stall,vat,currentUser,receiptNo,onConfirm,onClose}){
   const confirm=async()=>{
     const e=validate();if(Object.keys(e).length){setErrors(e);return;}
     setSaving(true);
-    await onConfirm({stall_id:stall.id,stall_name:stall.name,stall_zone:stall.zone,stall_type:stall.type,stall_size:stall.size,stall_price:stall.price,renter_name:name,email,phone,start_date:startDate,end_date:endDate,days,subtotal:sub,vat_amount:vatAmt,total:grand,amount_paid:paid,notes:notes.trim(),booked_by:currentUser.name,receipt_no:receiptNo});
+    await onConfirm({stall_id:stall.id,stall_name:stall.name,stall_zone:stall.zone,stall_type:stall.type,stall_size:stall.size,stall_price:stall.price,renter_name:name,email,phone,start_date:startDate,end_date:endDate,days,subtotal:sub,vat_amount:vatAmt,total:grand,amount_paid:paid,notes:notes.trim(),payment_method:payMethod,booked_by:currentUser.name,receipt_no:receiptNo});
     setSaving(false);
   };
   return(
@@ -382,6 +383,24 @@ function BookingModal({stall,vat,currentUser,receiptNo,onConfirm,onClose}){
           <span style={{fontWeight:700,fontSize:13,color:T.text}}>{chg>=0?'💚 Change Due':'🔴 Balance'}</span>
           <span style={{fontFamily:T.mono,fontSize:18,fontWeight:900,color:chg>=0?T.success:T.danger}}>{chg>=0?`$${fmt2(chg)}`:`−$${fmt2(Math.abs(chg))}`}</span>
         </div>}
+      </div>
+      <div style={{marginBottom:13}}>
+        <FieldLabel>Cash Collection Method</FieldLabel>
+        <div style={{display:'flex',gap:8,flexWrap:'wrap',marginBottom:8}}>
+          {[
+            {m:'Cash — Hand to Cashier', icon:'🤝'},
+            {m:'Cash — Drop Box',        icon:'📦'},
+            {m:'Cash — Market Office',   icon:'🏢'},
+            {m:'Cash — Bank Deposit',    icon:'🏦'},
+          ].map(({m,icon})=>(
+            <button key={m} onClick={()=>setPayMethod(m)} style={{padding:'8px 14px',borderRadius:9,border:`2px solid ${payMethod===m?T.accent:T.border}`,background:payMethod===m?T.accent+'15':'#fff',color:payMethod===m?T.accentD:T.muted,fontSize:12,fontWeight:700,cursor:'pointer',fontFamily:T.sans,transition:'all .15s',display:'flex',alignItems:'center',gap:6}}>
+              {icon} {m.replace('Cash — ','')}
+            </button>
+          ))}
+        </div>
+        <div style={{padding:'8px 12px',background:'#f0fdf4',border:'1px solid #86efac',borderRadius:8,fontSize:12,color:'#166534',fontWeight:600}}>
+          ✅ {payMethod}
+        </div>
       </div>
       <div style={{marginBottom:18}}><FieldLabel optional>Notes</FieldLabel><textarea value={notes} onChange={e=>setNotes(e.target.value)} placeholder="Special requirements…" rows={2} style={{...inp(false),resize:'vertical'}}/></div>
       <div style={{display:'flex',gap:10}}><Btn ghost onClick={onClose} style={{flex:1}}>Cancel</Btn><Btn onClick={confirm} disabled={saving} style={{flex:2}}>{saving?'Saving…':'Confirm Booking'}</Btn></div>
@@ -411,7 +430,7 @@ function ReceiptModal({booking,branding,vat,onClose}){
       </div>
       <div style={{height:3,background:'linear-gradient(90deg,#6366f1,#8b5cf6,#ec4899)'}}/>
       <div style={{padding:'20px 24px'}}>
-        <Sec title="Renter"><Row l="Name" v={booking.renter_name}/>{booking.email&&<Row l="Email" v={booking.email}/>}{booking.phone&&<Row l="Phone" v={booking.phone}/>}{booking.notes&&<Row l="Notes" v={booking.notes}/>}<Row l="Booked" v={booking.booked_at_fmt||new Date(booking.created_at).toLocaleString('en-GB')}/>{booking.booked_by&&<Row l="By" v={booking.booked_by}/>}</Sec>
+        <Sec title="Renter"><Row l="Name" v={booking.renter_name}/>{booking.email&&<Row l="Email" v={booking.email}/>}{booking.phone&&<Row l="Phone" v={booking.phone}/>}{booking.notes&&<Row l="Notes" v={booking.notes}/>}<Row l="Booked" v={booking.booked_at_fmt||new Date(booking.created_at).toLocaleString('en-GB')}/>{booking.booked_by&&<Row l="By" v={booking.booked_by}/>}{booking.payment_method&&<Row l="💵 Payment" v={booking.payment_method} color={T.success}/>}</Sec>
         <Sec title="Stall"><Row l="Stall" v={`${booking.stall_name} — Zone ${booking.stall_zone}`}/><Row l="Type" v={booking.stall_type}/><Row l="Size" v={booking.stall_size}/><Row l="Rate" v={`$${booking.stall_price}/week`}/></Sec>
         <Sec title="Period"><Row l="Check-in" v={fmtDate(booking.start_date)}/><Row l="Due Date" v={fmtDate(booking.end_date)}/><Row l="Duration" v={`${booking.days} day${booking.days!==1?'s':''}`}/></Sec>
         <Sec title="Payment"><Row l={`Subtotal (${Math.ceil(booking.days/7)||0}wk × $${booking.stall_price})`} v={`$${fmt2(sub)}`}/>{vat.enabled&&<Row l={`${vat.label||'VAT'} (${vat.rate}%)`} v={`$${fmt2(vatAmt)}`} color={T.purple}/>}</Sec>
@@ -1204,6 +1223,108 @@ function FloorPlanModal({stallName, stalls, bookings, vat, onBook, onRelease, on
   );
 }
 
+
+// ── Repossess Modal ───────────────────────────────────────────────────────────
+const REPOSSESS_REASONS = [
+  'Non-payment of rent',
+  'Repeated late payment',
+  'Lease agreement violation',
+  'Illegal goods / contraband',
+  'Abandonment of stall',
+  'Health & safety violation',
+  'Subletting without permission',
+  'Market authority order',
+];
+
+function RepossessModal({stall, booking, vat, currentUser, onConfirm, onClose}){
+  const[reason,   setReason]  = useState('');
+  const[custom,   setCustom]  = useState('');
+  const[noticeNo, setNoticeNo]= useState('');
+  const[saving,   setSaving]  = useState(false);
+  const[err,      setErr]     = useState('');
+
+  const sub  = parseFloat(booking?.subtotal||0);
+  const{grand} = calcVAT(sub, vat.rate, vat.enabled);
+  const paid   = parseFloat(booking?.amount_paid||0);
+  const outstanding = Math.max(0, Math.round((grand-paid)*100)/100);
+  const finalReason  = reason==='Other'?custom.trim():reason;
+
+  const confirm = async()=>{
+    if(!finalReason){ setErr('Please select or enter a reason.'); return; }
+    setSaving(true);
+    await onConfirm({
+      stallId:   stall.id,
+      stallName: stall.name,
+      reason:    finalReason,
+      noticeNo:  noticeNo.trim(),
+      outstanding,
+      renterName: booking?.renter_name||'',
+      by: currentUser.name,
+    });
+    setSaving(false);
+  };
+
+  return(
+    <Modal onClose={onClose} width={480}>
+      <MHead title={`Repossess Stall ${stall.name}`} subtitle="This will immediately mark the stall as available" icon="⚠️" onClose={onClose}/>
+      <div style={{padding:'18px 26px 24px'}}>
+
+        {/* Warning banner */}
+        <div style={{background:'#fff1f2',border:'2px solid #fca5a5',borderRadius:10,padding:'12px 16px',marginBottom:18,display:'flex',gap:12,alignItems:'flex-start'}}>
+          <span style={{fontSize:22,flexShrink:0}}>⚠️</span>
+          <div>
+            <div style={{fontSize:13,fontWeight:700,color:T.danger,marginBottom:3}}>Repossession Action</div>
+            <div style={{fontSize:12,color:'#9f1239',lineHeight:1.6}}>
+              This will <strong>immediately terminate</strong> the rental agreement for <strong>{booking?.renter_name}</strong> and mark Stall {stall.name} as available.
+              {outstanding>0&&<span> Outstanding balance of <strong>${fmt2(outstanding)}</strong> will be recorded.</span>}
+            </div>
+          </div>
+        </div>
+
+        {/* Renter summary */}
+        {booking&&<div style={{background:'#f8fafc',border:`1px solid ${T.border}`,borderRadius:9,padding:'11px 14px',marginBottom:16,display:'grid',gridTemplateColumns:'1fr 1fr',gap:'6px 16px',fontSize:12}}>
+          <div><span style={{color:T.muted}}>Renter: </span><strong>{booking.renter_name}</strong></div>
+          <div><span style={{color:T.muted}}>Stall: </span><strong>{stall.name} · Zone {stall.zone}</strong></div>
+          <div><span style={{color:T.muted}}>Weeks booked: </span><strong>{booking.days?Math.ceil(booking.days/7):0}wk</strong></div>
+          <div><span style={{color:T.muted}}>Outstanding: </span><strong style={{color:outstanding>0?T.danger:T.success}}>${fmt2(outstanding)}</strong></div>
+        </div>}
+
+        {/* Reason */}
+        <div style={{marginBottom:14}}>
+          <FieldLabel>Reason for Repossession</FieldLabel>
+          <div style={{display:'flex',flexDirection:'column',gap:6}}>
+            {REPOSSESS_REASONS.concat(['Other']).map(r=>(
+              <label key={r} style={{display:'flex',alignItems:'center',gap:10,padding:'8px 12px',borderRadius:8,border:`1.5px solid ${reason===r?T.danger:T.border}`,background:reason===r?'#fff1f2':'#fff',cursor:'pointer',fontSize:13,fontWeight:reason===r?600:400,color:reason===r?T.danger:T.text,transition:'all .15s'}}>
+                <input type="radio" name="repossess_reason" value={r} checked={reason===r} onChange={()=>{setReason(r);setErr('');}}
+                  style={{accentColor:T.danger,width:15,height:15,flexShrink:0}}/>
+                {r}
+              </label>
+            ))}
+          </div>
+          {reason==='Other'&&<textarea value={custom} onChange={e=>setCustom(e.target.value)} placeholder="Describe the reason…" rows={2}
+            style={{...inp(false),marginTop:8,resize:'vertical'}}/>}
+          {err&&<FieldError msg={err}/>}
+        </div>
+
+        {/* Notice number */}
+        <div style={{marginBottom:20}}>
+          <FieldLabel optional>Repossession Notice Number</FieldLabel>
+          <input value={noticeNo} onChange={e=>setNoticeNo(e.target.value)} placeholder="e.g. RPN-2025-001"
+            style={inp(false)}/>
+          <div style={{fontSize:11,color:T.light,marginTop:4}}>Appears on the repossession notice for your records.</div>
+        </div>
+
+        <div style={{display:'flex',gap:10}}>
+          <Btn ghost onClick={onClose} style={{flex:1}}>Cancel</Btn>
+          <Btn danger onClick={confirm} disabled={saving} style={{flex:2}}>
+            {saving?'Processing…':'⚠️ Confirm Repossession'}
+          </Btn>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
 export default function App(){
   // ── Data state ──
   const[stalls,      setStalls]      = useState([]);
@@ -1229,6 +1350,7 @@ export default function App(){
   const[view,        setView]        = useState('grid');
   const[highlightStall,setHighlightStall] = useState(null); // stall name to highlight on map
   const[floorPlanStall,setFloorPlanStall] = useState(null); // opens full floor plan modal
+  const[repossessData, setRepossessData]  = useState(null); // {stall, booking} for repossess modal
   const realtimeRef = useRef(null);
 
   // ── Toast helpers ──
@@ -1368,6 +1490,22 @@ export default function App(){
     setSyncing(false);
   };
 
+  const handleRepossess = async ({stallId, stallName, reason, noticeNo, outstanding, renterName, by}) => {
+    try {
+      await supabase.from('stalls').update({status:'available'}).eq('id',stallId);
+      await supabase.from('bookings').delete().eq('stall_id',stallId);
+      await supabase.from('activity_log').insert({
+        type:'repossess',
+        message:`Stall ${stallName} repossessed from ${renterName}. Reason: ${reason}.${outstanding>0?` Outstanding: $${fmt2(outstanding)}.`:''}${noticeNo?` Notice: ${noticeNo}.`:''}`,
+        user_name: by,
+      });
+      setRepossessData(null);
+      addToast('success','Stall repossessed',`Stall ${stallName} is now available`);
+    } catch(err) {
+      addToast('error','Repossession failed', err.message||'Unknown error');
+    }
+  };
+
   const handleSaveDates = async (id,startDate,endDate,newDays,newSub,newGrand) => {
     const{error}=await supabase.from('bookings').update({start_date:startDate,end_date:endDate,days:newDays,subtotal:newSub,total:newGrand}).eq('id',id);
     if(!error){ setModal(null); addToast('success','Dates updated',''); logAction('dates',`Booking dates updated → $${fmt2(newGrand)}.`); }
@@ -1442,6 +1580,14 @@ export default function App(){
     <>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=DM+Mono:wght@400;500;700&display=swap');*{box-sizing:border-box;margin:0;padding:0}@keyframes mIn{from{opacity:0;transform:scale(.96) translateY(8px)}to{opacity:1;transform:none}}@keyframes tIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}@keyframes fUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:none}}input:focus,select:focus,textarea:focus{border-color:#6366f1!important;box-shadow:0 0 0 3px rgba(99,102,241,.12)!important;outline:none!important;}`}</style>
       <LoginScreen branding={branding} onLogin={handleLogin}/>
+      {repossessData&&<RepossessModal
+          stall={repossessData.stall}
+          booking={repossessData.booking}
+          vat={vat}
+          currentUser={currentUser}
+          onConfirm={handleRepossess}
+          onClose={()=>setRepossessData(null)}
+        />}
       {floorPlanStall!==null&&<FloorPlanModal
           stallName={floorPlanStall}
           stalls={stalls}
@@ -1550,7 +1696,7 @@ export default function App(){
             return(<div key={zone} style={{marginBottom:26}}>
               <div style={{display:'flex',alignItems:'center',gap:9,marginBottom:11}}><span style={{background:T.primary,color:'#fff',borderRadius:6,padding:'2px 10px',fontSize:10,fontWeight:700,letterSpacing:'0.07em'}}>ZONE {zone}</span><span style={{fontSize:12,color:T.muted}}>{zs.length} stall{zs.length!==1?'s':''} · {zs.filter(s=>s.status==='booked').length} booked</span></div>
               <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))',gap:11}}>
-                {zs.map(stall=><StallCard key={stall.id} stall={stall} booking={bookingByStall[stall.id]} stallTypes={stallTypes} vat={vat} canEdit={perms.canBook} canDelete={perms.canDeleteStalls} onBook={s=>{setSelected(s);setModal('book');}} onRelease={handleRelease} onEdit={s=>{if(s._delete){handleSaveStall(s);}else{setSelected(s);setModal('editStall');}}} onPending={handlePending} onViewOnMap={name=>{setFloorPlanStall(name);}}/>)}
+                {zs.map(stall=><StallCard key={stall.id} stall={stall} booking={bookingByStall[stall.id]} stallTypes={stallTypes} vat={vat} canEdit={perms.canBook} canDelete={perms.canDeleteStalls} onBook={s=>{setSelected(s);setModal('book');}} onRelease={handleRelease} onRepossess={(s,b)=>setRepossessData({stall:s,booking:b})} onEdit={s=>{if(s._delete){handleSaveStall(s);}else{setSelected(s);setModal('editStall');}}} onPending={handlePending} onViewOnMap={name=>{setFloorPlanStall(name);}}/>)}
               </div>
             </div>);
           })}
@@ -1595,7 +1741,7 @@ export default function App(){
                       <span style={{fontFamily:T.mono,fontWeight:900,fontSize:17,color:T.text}}>${fmt2(grand)}</span>
                       <Btn ghost small onClick={()=>{setSelected(b);setModal('receipt');}} style={{color:T.success,borderColor:T.success+'66'}}>🖨 Receipt</Btn>
                       {perms.canBook&&<Btn ghost small onClick={()=>{setSelected(b);setModal('editDates');}}>✎ Dates</Btn>}{perms.canBook&&<Btn ghost small onClick={()=>{setSelected(b);setModal('editPayment');}}>💳 Payment</Btn>}
-                      {perms.canBook&&<Btn ghost small danger onClick={()=>handleRelease(b.stall_id)}>Release</Btn>}
+                      {perms.canBook&&<Btn ghost small onClick={()=>handleRelease(b.stall_id)}>↩ Release</Btn>}{perms.canBook&&<Btn ghost small danger onClick={()=>{const s=stalls.find(x=>x.id===b.stall_id);if(s)setRepossessData({stall:s,booking:b});}}>⚠️ Repossess</Btn>}
                     </div>
                   </Card>
                 );
@@ -1662,6 +1808,14 @@ export default function App(){
         <Btn ghost onClick={()=>setModal(null)} style={{width:'100%',marginTop:16}}>Done</Btn>
       </div></Modal>}
 
+      {repossessData&&<RepossessModal
+          stall={repossessData.stall}
+          booking={repossessData.booking}
+          vat={vat}
+          currentUser={currentUser}
+          onConfirm={handleRepossess}
+          onClose={()=>setRepossessData(null)}
+        />}
       {floorPlanStall!==null&&<FloorPlanModal
           stallName={floorPlanStall}
           stalls={stalls}
